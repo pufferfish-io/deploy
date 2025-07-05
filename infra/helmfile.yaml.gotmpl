@@ -15,4 +15,4 @@ releases:
     values: [kafka-values.yaml]
     set:
       - name: kraft.clusterId
-        value: "{{ env \"KAFKA_CLUSTER_ID\" }}"
+        value: {{ env "KAFKA_CLUSTER_ID" }}
