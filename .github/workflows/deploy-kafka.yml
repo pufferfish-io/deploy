@@ -21,6 +21,12 @@ jobs:
       - name: 🧠 Print env for debug
         run: echo "KAFKA_CLUSTER_ID = $KAFKA_CLUSTER_ID"
 
+      - name: 🧷 Set kubeconfig path for K3s
+        run: echo "KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> $GITHUB_ENV
+
+      - name: 🛠 Test cluster connection (optional)
+        run: kubectl get nodes
+
       - name: 📥 Install helm-diff plugin
         run: helm plugin install https://github.com/databus23/helm-diff || true
 
