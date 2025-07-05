@@ -1,0 +1,13 @@
+kraft:
+  enabled: true
+  clusterId: "{{ env \"KAFKA_CLUSTER_ID\" }}"
+
+zookeeper:
+  enabled: false
+
+auth:
+  clientProtocol: plaintext
+  interBrokerProtocol: plaintext
+  controllerListenerProtocol: plaintext
+
+replicaCount: 1
