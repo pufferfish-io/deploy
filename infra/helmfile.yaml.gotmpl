@@ -3,16 +3,17 @@ environments:
     values: []
 
 ---
+
 repositories:
-  - name: bitnami
-    url: https://charts.bitnami.com/bitnami
+  - name: bitnamicharts
+    url: oci://registry-1.docker.io/bitnamicharts
 
 releases:
   - name: kafka
     namespace: default
-    chart: bitnami/kafka
+    chart: bitnamicharts/kafka
     version: 28.0.4
     values: [kafka-values.yaml]
     set:
       - name: kraft.clusterId
-        value: {{ env "KAFKA_CLUSTER_ID" }}
+        value: "{{ env "KAFKA_CLUSTER_ID" }}"
