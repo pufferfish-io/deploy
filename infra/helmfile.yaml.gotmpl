@@ -4,13 +4,13 @@ environments:
 
 ---
 repositories:
-  - name: bitnamicharts
-    url: oci://registry-1.docker.io/bitnamicharts
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
 
 releases:
   - name: kafka
     namespace: default
-    chart: bitnamicharts/com.bitnami.kafka
+    chart: bitnami/kafka
     version: 28.0.4
     values: [kafka-values.yaml]
     set:
