@@ -21,6 +21,9 @@ jobs:
       - name: 🧠 Print env for debug
         run: echo "KAFKA_CLUSTER_ID = $KAFKA_CLUSTER_ID"
 
+      - name: 📥 Install helm-diff plugin
+        run: helm plugin install https://github.com/databus23/helm-diff || true
+
       - name: 🚀 Deploy Kafka via helmfile
         run: |
           cd infra
