@@ -7,6 +7,7 @@ on:
 
 jobs:
   deploy:
+    name: ☕ Kafka Deployment
     runs-on: self-hosted
 
     steps:
@@ -17,7 +18,10 @@ jobs:
         run: |
           grep -v '^#' infra/.env >> $GITHUB_ENV
 
+      - name: 🧠 Print env for debug
+        run: echo "KAFKA_CLUSTER_ID = $KAFKA_CLUSTER_ID"
+
       - name: 🚀 Deploy Kafka via helmfile
         run: |
           cd infra
-          helmfile -e production apply
+          helmfile -e production apply --debug
