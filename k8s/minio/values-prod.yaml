@@ -1,9 +1,4 @@
-replicaCount: 1
-
-auth:
-  rootUser: ""
-  rootPassword: ""
-
+# Используем официальный chart из https://charts.min.io/
 persistence:
   enabled: true
   size: 10Gi
@@ -15,7 +10,11 @@ service:
 ingress:
   enabled: true
   ingressClassName: nginx
-  hostname: file.pufferfish.ru
+  hosts:
+    - host: file.pufferfish.ru
+      paths:
+        - path: /
+          pathType: Prefix
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"

@@ -18,9 +18,9 @@ jobs:
             curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
           fi
 
-      - name: "📥 Add Bitnami repo"
+      - name: "📥 Add MinIO repo"
         run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
+          helm repo add minio https://charts.min.io/
           helm repo update
 
       - name: "📦 Deploy/Upgrade MinIO"
@@ -28,11 +28,11 @@ jobs:
           MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
-          helm upgrade --install minio bitnami/minio \
+          helm upgrade --install minio minio/minio \
             --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
-            --set auth.rootUser="${MINIO_ROOT_USER}" \
-            --set auth.rootPassword="${MINIO_ROOT_PASSWORD}"
+            --set accessKey="${MINIO_ROOT_USER}" \
+            --set secretKey="${MINIO_ROOT_PASSWORD}"
 
       - name: "📋 Show Ingress & Service"
         run: |
