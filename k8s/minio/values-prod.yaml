@@ -1,0 +1,26 @@
+replicaCount: 1
+
+auth:
+  rootUser: ""
+  rootPassword: ""
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: local-path
+
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: file.pufferfish.ru
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+  tls:
+    - hosts:
+        - file.pufferfish.ru
+      secretName: file-tls
