@@ -5,20 +5,19 @@ on:
 
 jobs:
   deploy-minio:
-    name: "🔄 Deploy MinIO in namespace minio"
+    name: "🔄 Deploy MinIO (production)"
     runs-on: self-hosted
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     steps:
-      - name: "🧾 Checkout repository"
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: "🔧 Ensure Helm is installed"
+      - name: "📦 Ensure Helm is installed"
         run: |
           if ! command -v helm >/dev/null; then
-            curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+            curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           fi
 
       - name: "📥 Add MinIO repo"
@@ -26,7 +25,7 @@ jobs:
           helm repo add minio https://charts.min.io/
           helm repo update
 
-      - name: "📦 Deploy/Upgrade MinIO"
+      - name: "🚀 Deploy or upgrade MinIO"
         id: deploy
         continue-on-error: true
         env:
@@ -40,22 +39,21 @@ jobs:
             --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
             --timeout 15m
 
-      - name: "📋 Show diagnostics if deploy failed"
+      - name: "🛠️ Logs & diagnostics on failure"
         if: steps.deploy.outcome == 'failure'
         run: |
-          echo "🔻 JOBS:"
+          echo "🔻 Jobs:"
           kubectl get jobs -n minio -o wide || true
 
-          echo -e "\n🔻 LOGS from minio-post-job:"
-          kubectl logs job/minio-post-job -n minio || echo "❌ Failed to get post-job logs"
+          echo -e "\n🔻 Logs from post-job:"
+          kubectl logs job/minio-post-job -n minio || echo "❌ can't fetch"
 
-          echo -e "\n🔻 PODS:"
+          echo -e "\n🔻 Pods:"
           kubectl get pods -n minio -o wide || true
 
-          echo -e "\n🔻 EVENTS:"
-          kubectl get events -n minio --sort-by=.metadata.creationTimestamp | tail -n 40 || true
+          echo -e "\n🔻 Events:"
+          kubectl get events -n minio --sort-by=.metadata.creationTimestamp | tail -40 || true
 
-      - name: "📋 Show Ingress & Service"
+      - name: "✅ Show Ingress & Service on success"
         if: steps.deploy.outcome == 'success'
-        run: |
-          kubectl get ingress,svc -n minio -o wide
+        run: kubectl get ingress,svc -n minio -o wide

@@ -1,14 +1,22 @@
-# k8s/minio/values-prod.yaml
 replicaCount: 1
+mode: standalone
 
 auth:
-  rootUser: ""           # из GitHub Secret MINIO_ROOT_USER
-  rootPassword: ""       # из GitHub Secret MINIO_ROOT_PASSWORD
+  rootUser: ""             # подтянется из Helm --set
+  rootPassword: ""
 
 persistence:
   enabled: true
-  size: 10Gi
+  size: 20Gi               # чуть больше, как для продакшена
   storageClass: local-path
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 1Gi
+    cpu: 500m
 
 service:
   type: ClusterIP
@@ -20,7 +28,7 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
   hosts:
     - file.pufferfish.ru
   path: /
@@ -28,3 +36,7 @@ ingress:
     - hosts:
         - file.pufferfish.ru
       secretName: file-tls
+
+postJob:
+  nodeSelector:
+    kubernetes.io/hostname: node-1
