@@ -8,6 +8,9 @@ jobs:
     name: "🔄 Deploy MinIO in namespace minio"
     runs-on: self-hosted
 
+    env:
+      KUBECONFIG: /home/runner/.kube/config
+
     steps:
       - name: "🧾 Checkout repository"
         uses: actions/checkout@v4
