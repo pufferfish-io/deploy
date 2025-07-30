@@ -1,11 +1,11 @@
-name: "🚀 Deploy MinIO: file.pufferfish.ru"
+name: "🚀 Deploy MinIO (UI+API)"
 
 on:
   workflow_dispatch:
 
 jobs:
   deploy-minio:
-    name: "🔄 Deploy MinIO (production)"
+    name: "🔄 Deploy MinIO with separate UI/API domains"
     runs-on: self-hosted
 
     env:
@@ -42,16 +42,9 @@ jobs:
       - name: "🛠️ Logs & diagnostics on failure"
         if: steps.deploy.outcome == 'failure'
         run: |
-          echo "🔻 Jobs:"
           kubectl get jobs -n minio -o wide || true
-
-          echo -e "\n🔻 Logs from post-job:"
-          kubectl logs job/minio-post-job -n minio || echo "❌ can't fetch"
-
-          echo -e "\n🔻 Pods:"
+          kubectl logs job/minio-post-job -n minio || echo "❌ can't fetch logs"
           kubectl get pods -n minio -o wide || true
-
-          echo -e "\n🔻 Events:"
           kubectl get events -n minio --sort-by=.metadata.creationTimestamp | tail -40 || true
 
       - name: "✅ Show Ingress & Service on success"

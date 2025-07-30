@@ -2,24 +2,21 @@ replicaCount: 1
 mode: standalone
 
 auth:
-  rootUser: ""             # подтянется из Helm --set
+  rootUser: ""
   rootPassword: ""
 
 persistence:
   enabled: true
-  size: 20Gi               # чуть больше, как для продакшена
+  size: 20Gi
   storageClass: local-path
 
-resources:
-  requests:
-    memory: 256Mi
-    cpu: 100m
-  limits:
-    memory: 1Gi
-    cpu: 500m
+console:
+  enabled: true
+  port: 9001
 
 service:
   type: ClusterIP
+  consolePort: 9001
 
 ingress:
   enabled: true
@@ -36,6 +33,21 @@ ingress:
     - hosts:
         - file.pufferfish.ru
       secretName: file-tls
+
+consoleIngress:
+  enabled: true
+  apiVersion: networking.k8s.io/v1
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - minio.pufferfish.ru
+  path: /
+  tls:
+    - hosts:
+        - minio.pufferfish.ru
+      secretName: minio-tls
 
 postJob:
   nodeSelector:
