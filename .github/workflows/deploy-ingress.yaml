@@ -1,0 +1,27 @@
+name: "🚀 Deploy Ingress: demo.pufferfish.ru"
+
+on:
+  push:
+    paths:
+      - 'k8s/ingress/hello-demo-ingress.yaml'
+
+  workflow_dispatch:  # 👈 запуск вручную из GitHub UI
+
+jobs:
+  apply-ingress:
+    name: "🔄 Apply Ingress for demo"
+    runs-on: self-hosted  # на infra-node (где GitHub Runner)
+    
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📤 Deploy Ingress: demo.pufferfish.ru
+        run: |
+          echo "⏳ Applying Ingress..."
+          kubectl apply -f k8s/ingress/hello-demo-ingress.yaml
+
+      - name: 📋 Show result
+        run: |
+          echo "✅ Ingresses in demo namespace:"
+          kubectl get ingress -n demo -o wide
