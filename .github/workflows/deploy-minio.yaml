@@ -35,7 +35,8 @@ jobs:
             --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
             --set accessKey="${MINIO_ROOT_USER}" \
-            --set secretKey="${MINIO_ROOT_PASSWORD}"
+            --set secretKey="${MINIO_ROOT_PASSWORD}" \
+            --timeout 15m
 
       - name: "📋 Show Ingress & Service"
         run: |
