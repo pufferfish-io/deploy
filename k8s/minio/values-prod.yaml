@@ -10,6 +10,14 @@ persistence:
   size: 20Gi
   storageClass: local-path
 
+resources:
+  requests:
+    memory: 128Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 250m
+
 console:
   enabled: true
   port: 9001
