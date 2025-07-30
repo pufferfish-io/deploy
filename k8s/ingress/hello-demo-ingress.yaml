@@ -1,21 +1,27 @@
-# k8s/ingress/hello-demo-ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: hello-demo-ingress
   namespace: demo
   annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01      # <- важно!
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - demo.pufferfish.ru
+      secretName: demo-tls
+
   rules:
-  - host: demo.pufferfish.ru
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: hello-service
-            port:
-              number: 80
+    - host: demo.pufferfish.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-service
+                port:
+                  number: 80
