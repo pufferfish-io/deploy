@@ -1,7 +1,8 @@
 replicaCount: 1
 
 auth:
-  existingSecret: minio-credentials
+  rootUser: ""     # если оставить пустым — сгенерирует сам
+  rootPassword: "" # если оставить пустым — сгенерирует сам
 
 persistence:
   enabled: true

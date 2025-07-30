@@ -20,18 +20,9 @@ jobs:
           helm repo add minio https://charts.min.io/
           helm repo update
 
-      - name: "📄 Apply secret with credentials"
+      - name: "📄 Create namespace"
         run: |
           kubectl create namespace minio --dry-run=client -o yaml | kubectl apply -f -
-          cat <<EOF | kubectl apply -n minio -f -
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: minio-credentials
-          stringData:
-            root-user: "${{ secrets.MINIO_ROOT_USER }}"
-            root-password: "${{ secrets.MINIO_ROOT_PASSWORD }}"
-          EOF
 
       - name: "🚀 Deploy MinIO with Helm"
         run: |
