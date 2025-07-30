@@ -8,8 +8,8 @@ jobs:
     name: "🔄 Deploy MinIO in namespace minio"
     runs-on: self-hosted
 
-  env:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     steps:
       - name: "🧾 Checkout repository"
