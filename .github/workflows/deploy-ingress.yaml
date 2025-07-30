@@ -9,8 +9,8 @@ on:
 jobs:
   apply-ingress:
     name: "🔄 Apply Ingress for demo"
-    runs-on: self-hosted
-    
+    runs-on: self-hosted  # на infra-node
+
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
