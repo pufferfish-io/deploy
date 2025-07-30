@@ -1,8 +1,8 @@
 replicaCount: 1
 
 auth:
-  rootUser: ""     # если оставить пустым — сгенерирует сам
-  rootPassword: "" # если оставить пустым — сгенерирует сам
+  rootUser: ""     # авто-генерация логина
+  rootPassword: "" # авто-генерация пароля
 
 persistence:
   enabled: true
@@ -43,9 +43,9 @@ consoleIngress:
     cert-manager.io/cluster-issuer: letsencrypt-http01
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - minio.pufferfish.ru
+    - files3.pufferfish.ru
   path: /
   tls:
     - hosts:
-        - minio.pufferfish.ru
-      secretName: minio-tls
+        - files3.pufferfish.ru
+      secretName: files3-tls
