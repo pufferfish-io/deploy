@@ -2,8 +2,6 @@ replicaCount: 1
 
 auth:
   existingSecret: minio-credentials
-  rootUser: ""
-  rootPassword: ""
 
 persistence:
   enabled: true
