@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-ingress
+  namespace: auth
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01    # наш ClusterIssuer
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - auth.pufferfish.ru
+      secretName: keycloak-tls
+
+  rules:
+    - host: auth.pufferfish.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 80

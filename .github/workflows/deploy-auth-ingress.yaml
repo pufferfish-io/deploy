@@ -1,0 +1,23 @@
+name: "🚀 Deploy Ingress: auth.pufferfish.ru"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-ingress:
+    name: "🔄 Apply Ingress for Keycloak"
+    runs-on: self-hosted
+
+    steps:
+      - name: "🧾 Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "📤 Deploy Ingress: auth.pufferfish.ru"
+        run: |
+          echo "⏳ Applying Keycloak Ingress..."
+          kubectl apply -f k8s/ingress/keycloak-ingress.yaml
+
+      - name: "📋 Show result"
+        run: |
+          echo "✅ Ingresses in auth namespace:"
+          kubectl get ingress -n auth -o wide
