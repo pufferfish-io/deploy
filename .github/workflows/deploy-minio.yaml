@@ -27,6 +27,8 @@ jobs:
           helm repo update
 
       - name: "📦 Deploy/Upgrade MinIO"
+        id: deploy
+        continue-on-error: true
         env:
           MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
@@ -38,6 +40,22 @@ jobs:
             --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
             --timeout 15m
 
+      - name: "📋 Show diagnostics if deploy failed"
+        if: steps.deploy.outcome == 'failure'
+        run: |
+          echo "🔻 JOBS:"
+          kubectl get jobs -n minio -o wide || true
+
+          echo -e "\n🔻 LOGS from minio-post-job:"
+          kubectl logs job/minio-post-job -n minio || echo "❌ Failed to get post-job logs"
+
+          echo -e "\n🔻 PODS:"
+          kubectl get pods -n minio -o wide || true
+
+          echo -e "\n🔻 EVENTS:"
+          kubectl get events -n minio --sort-by=.metadata.creationTimestamp | tail -n 40 || true
+
       - name: "📋 Show Ingress & Service"
+        if: steps.deploy.outcome == 'success'
         run: |
           kubectl get ingress,svc -n minio -o wide
