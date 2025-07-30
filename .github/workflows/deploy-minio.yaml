@@ -1,7 +1,7 @@
 name: "🚀 Deploy MinIO: file.pufferfish.ru"
 
 on:
-  workflow_dispatch:  # 👈 позволяет запускать только вручную
+  workflow_dispatch:
 
 jobs:
   deploy-minio:
@@ -20,7 +20,7 @@ jobs:
 
       - name: "📥 Add Bitnami repo"
         run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
           helm repo update
 
       - name: "📦 Deploy/Upgrade MinIO"
