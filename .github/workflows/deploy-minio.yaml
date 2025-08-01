@@ -17,7 +17,6 @@ jobs:
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
           helm repo add minio https://charts.min.io/
-          helm repo update
           helm upgrade --install minio minio/minio \
             --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
