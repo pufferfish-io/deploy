@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "telegram-forwarder.fullname" . }}
+  labels:
+    app: {{ include "telegram-forwarder.name" . }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ include "telegram-forwarder.name" . }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}

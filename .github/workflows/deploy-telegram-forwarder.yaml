@@ -1,0 +1,24 @@
+name: 🚀 Deploy telegram-forwarder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via Helm
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 📦 Set up Helm (if needed)
+        run: |
+          helm version || curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: 🚀 Deploy telegram-forwarder
+        run: |
+          helm upgrade --install telegram-forwarder charts/telegram-forwarder             --namespace app             --create-namespace             --set telegramToken=${{ secrets.TG_FORWARDER_TOKEN }}
