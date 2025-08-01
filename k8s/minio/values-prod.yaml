@@ -1,8 +1,9 @@
 replicaCount: 1
 
 auth:
-  rootUser: ""     # авто-генерация логина
-  rootPassword: "" # авто-генерация пароля
+  existingSecret: minio-credentials
+  rootUser: ""
+  rootPassword: ""
 
 persistence:
   enabled: true
