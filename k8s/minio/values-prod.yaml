@@ -30,12 +30,12 @@ ingress:
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "500m"
   hosts:
-    - file.pufferfish.ru
+    - minio.back.pufferfish.ru
   path: /
   tls:
     - hosts:
-        - file.pufferfish.ru
-      secretName: file-tls
+        - minio.back.pufferfish.ru
+      secretName: minio-back-tls
 
 consoleIngress:
   enabled: true
@@ -44,9 +44,9 @@ consoleIngress:
     cert-manager.io/cluster-issuer: letsencrypt-http01
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - files3.pufferfish.ru
+    - minio.ui.pufferfish.ru
   path: /
   tls:
     - hosts:
-        - files3.pufferfish.ru
-      secretName: files3-tls
+        - minio.ui.pufferfish.ru
+      secretName: minio-ui-tls
