@@ -1,41 +1,21 @@
 replicaCount: 1
+mode: standalone
 
 auth:
-  existingSecret: minio-credentials
   rootUser: ""
   rootPassword: ""
 
 persistence:
   enabled: true
   size: 10Gi
-  storageClass: local-path
 
 resources:
   requests:
-    memory: 128Mi
-    cpu: 50m
+    memory: 256Mi
+    cpu: 100m
   limits:
     memory: 512Mi
-    cpu: 200m
-
-service:
-  type: ClusterIP
-
-ingress:
-  enabled: true
-  apiVersion: networking.k8s.io/v1
-  ingressClassName: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-http01
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
-  hosts:
-    - minio.back.pufferfish.ru
-  path: /
-  tls:
-    - hosts:
-        - minio.back.pufferfish.ru
-      secretName: minio-back-tls
+    cpu: 250m
 
 consoleIngress:
   enabled: true
@@ -44,9 +24,22 @@ consoleIngress:
     cert-manager.io/cluster-issuer: letsencrypt-http01
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - minio.ui.pufferfish.ru
-  path: /
+    - minio.pufferfish.ru
   tls:
-    - hosts:
-        - minio.ui.pufferfish.ru
-      secretName: minio-ui-tls
+    - secretName: minio-tls
+      hosts:
+        - minio.pufferfish.ru
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 500m
+  hosts:
+    - file.pufferfish.ru
+  tls:
+    - secretName: file-tls
+      hosts:
+        - file.pufferfish.ru

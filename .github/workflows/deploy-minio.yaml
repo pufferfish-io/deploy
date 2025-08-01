@@ -1,35 +1,26 @@
-name: "🚀 Deploy MinIO: file.pufferfish.ru"
+name: 🚀 Deploy MinIO
 
 on:
   workflow_dispatch:
 
 jobs:
-  deploy-minio:
-    name: "🔄 Deploy MinIO in namespace minio"
-    runs-on: self-hosted
-
-    env:
-      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
+  deploy:
+    runs-on: [self-hosted]
     steps:
-      - name: "🧾 Checkout repository"
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: "📥 Add MinIO repo"
+      - name: 🚀 Deploy MinIO via Helm
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
           helm repo add minio https://charts.min.io/
-
-      - name: "📄 Create namespace"
-        run: |
-          kubectl create namespace minio --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: "🚀 Deploy MinIO with Helm"
-        run: |
+          helm repo update
           helm upgrade --install minio minio/minio \
-            --namespace minio \
+            --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
+            --set auth.rootUser="${MINIO_ROOT_USER}" \
+            --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
             --timeout 15m
-
-      - name: "📋 Show Ingress & Service"
-        run: |
-          kubectl get ingress,svc -n minio -o wide
