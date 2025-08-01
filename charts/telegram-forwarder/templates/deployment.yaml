@@ -14,6 +14,8 @@ spec:
       labels:
         app: {{ include "telegram-forwarder.name" . }}
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
