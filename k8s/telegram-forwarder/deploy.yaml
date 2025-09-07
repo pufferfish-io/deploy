@@ -95,4 +95,10 @@ spec:
                 name: telegram-forwarder
                 port:
                   number: 8080
-
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: telegram-forwarder
+                port:
+                  number: 8080
