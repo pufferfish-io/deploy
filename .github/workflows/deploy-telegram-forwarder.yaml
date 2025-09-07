@@ -7,6 +7,10 @@ on:
         description: "Image tag to deploy (defaults to latest)"
         required: false
         default: "latest"
+      image_repo:
+        description: "Container image repository"
+        required: false
+        default: "ghcr.io/pufferfish-io/telegram-forwarder"
 
 jobs:
   deploy:
@@ -53,8 +57,19 @@ jobs:
       - name: 🖼 Update image tag
         env:
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+          IMAGE_REPO: ${{ github.event.inputs.image_repo }}
         run: |
           TAG=${IMAGE_TAG:-latest}
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY}:${TAG}"
+          REPO=${IMAGE_REPO:-ghcr.io/pufferfish-io/telegram-forwarder}
+          IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/telegram-forwarder telegram-forwarder=${IMAGE}
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/telegram-forwarder --timeout=120s
+          kubectl -n app get pods -o wide
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/telegram-forwarder --tail=200
