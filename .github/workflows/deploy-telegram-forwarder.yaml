@@ -2,6 +2,11 @@ name: 🚀 Deploy telegram-forwarder
 
 on:
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
 
 jobs:
   deploy:
@@ -15,10 +20,41 @@ jobs:
       - name: 🧾 Checkout repo
         uses: actions/checkout@v4
 
-      - name: 📦 Set up Helm (if needed)
+      - name: 🔧 Ensure namespace
         run: |
-          helm version || curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          kubectl get ns app || kubectl create ns app
 
-      - name: 🚀 Deploy telegram-forwarder
+      - name: 🔐 Apply/update env Secret
+        env:
+          ADDR: ":8080"
+          BOOTSTRAP: ${{ secrets.TG_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          TOPIC: ${{ secrets.TG_FORWARDER_KAFKA_TG_MESS_TOPIC_NAME }}
+          SASL_USER: ${{ secrets.TG_FORWARDER_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.TG_FORWARDER_KAFKA_SASL_PASSWORD }}
+          TG_TOKEN: ${{ secrets.TG_FORWARDER_TELEGRAM_TOKEN }}
+          WEBHOOK_PATH: ${{ secrets.TG_FORWARDER_API_TG_WEB_HOOK_PATH }}
+          HEALTH_PATH: ${{ secrets.TG_FORWARDER_API_HEALTH_CHECK_PATH }}
         run: |
-          helm upgrade --install telegram-forwarder charts/telegram-forwarder             --namespace app             --create-namespace             --set telegramToken=${{ secrets.TG_FORWARDER_TOKEN }}
+          kubectl -n app create secret generic telegram-forwarder-env \
+            --from-literal=TG_FORWARDER_SERVER_ADDR="${ADDR:-:8080}" \
+            --from-literal=TG_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=TG_FORWARDER_KAFKA_TG_MESS_TOPIC_NAME="${TOPIC}" \
+            --from-literal=TG_FORWARDER_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=TG_FORWARDER_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=TG_FORWARDER_TELEGRAM_TOKEN="${TG_TOKEN}" \
+            --from-literal=TG_FORWARDER_API_TG_WEB_HOOK_PATH="${WEBHOOK_PATH:-/telegram/webhook}" \
+            --from-literal=TG_FORWARDER_API_HEALTH_CHECK_PATH="${HEALTH_PATH:-/healthz}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/telegram-forwarder/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/telegram-forwarder telegram-forwarder=${IMAGE}
