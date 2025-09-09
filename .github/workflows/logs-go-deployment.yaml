@@ -1,0 +1,25 @@
+name: "📜 Logs Go deployment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: "Deployment name (service name)"
+        required: true
+        type: choice
+        options:
+          - telegram-forwarder
+jobs:
+  logs:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      DEPLOYMENT: ${{ github.event.inputs.deployment }}
+    steps:
+      - name: 📡 Tail last 300 and follow
+        continue-on-error: true
+        run: |
+          echo "Target deployment: ${DEPLOYMENT} (ns: app)"
+          echo "Showing last 300 lines, then following (job times out in 10 minutes)"
+          kubectl -n app logs deploy/"${DEPLOYMENT}" --tail=300 -f
