@@ -1,0 +1,25 @@
+name: "🔁 Restart Go deployment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: "Deployment name (service name)"
+        required: true
+        type: choice
+        options:
+          - telegram-forwarder
+jobs:
+  restart:
+    runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      DEPLOYMENT: ${{ github.event.inputs.deployment }}
+    steps:
+      - name: 🔁 Restart deployment
+        run: |
+          echo "Restarting: $DEPLOYMENT in ns: app"
+          kubectl -n app rollout restart "deployment/${DEPLOYMENT}"
+      - name: ⏳ Wait for rollout
+        run: |
+          kubectl -n app rollout status "deployment/${DEPLOYMENT}" --timeout=180s
