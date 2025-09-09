@@ -22,4 +22,4 @@ jobs:
         run: |
           echo "Target deployment: ${DEPLOYMENT} (ns: app)"
           echo "Showing last 300 lines, then following (job times out in 10 minutes)"
-          kubectl -n app logs deploy/"${DEPLOYMENT}" --tail=300 -f --insecure-skip-tls-verify-backend
+          kubectl -n app logs deploy/"${DEPLOYMENT}" --tail=300 -f

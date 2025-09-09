@@ -72,4 +72,4 @@ jobs:
       - name: 📝 Recent logs (best effort)
         continue-on-error: true
         run: |
-          kubectl -n app logs deploy/telegram-forwarder --tail=200 --insecure-skip-tls-verify-backend
+          kubectl -n app logs deploy/telegram-forwarder --tail=200
