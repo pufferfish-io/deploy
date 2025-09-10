@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - telegram-forwarder
+          - telegram-normalizer
 jobs:
   restart:
     runs-on: self-hosted

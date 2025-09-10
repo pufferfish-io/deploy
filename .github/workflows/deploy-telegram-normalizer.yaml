@@ -1,0 +1,80 @@
+name: 🚀 Deploy telegram-normalizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via Helm
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🔐 Apply/update env Secret
+        env:
+          TG_TOKEN: ${{ secrets.TG_NORM_TELEGRAM_TOKEN }}
+          BOOTSTRAP: ${{ secrets.TG_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ secrets.TG_NORM_KAFKA_GROUP_ID }}
+          SASL_USER: ${{ secrets.TG_NORM_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.TG_NORM_KAFKA_SASL_PASSWORD }}
+          TOPIC_UPDATES: ${{ secrets.TG_NORM_KAFKA_TG_MESS_TOPIC_NAME }}
+          TOPIC_NORMALIZED: ${{ secrets.TG_NORM_KAFKA_NORMALIZER_TOPIC_NAME }}
+          S3_ENDPOINT: ${{ secrets.TG_NORM_S3_ENDPOINT }}
+          S3_ACCESS: ${{ secrets.TG_NORM_S3_ACCESS_KEY }}
+          S3_SECRET: ${{ secrets.TG_NORM_S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.TG_NORM_S3_BUCKET }}
+          S3_USE_SSL: ${{ secrets.TG_NORM_S3_USE_SSL }}
+        run: |
+          kubectl -n app create secret generic telegram-normalizer-env \
+            --from-literal=TG_NORM_TELEGRAM_TOKEN="${TG_TOKEN}" \
+            --from-literal=TG_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=TG_NORM_KAFKA_GROUP_ID="${GROUP_ID}" \
+            --from-literal=TG_NORM_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=TG_NORM_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=TG_NORM_KAFKA_TG_MESS_TOPIC_NAME="${TOPIC_UPDATES}" \
+            --from-literal=TG_NORM_KAFKA_NORMALIZER_TOPIC_NAME="${TOPIC_NORMALIZED}" \
+            --from-literal=TG_NORM_S3_ENDPOINT="${S3_ENDPOINT}" \
+            --from-literal=TG_NORM_S3_ACCESS_KEY="${S3_ACCESS}" \
+            --from-literal=TG_NORM_S3_SECRET_KEY="${S3_SECRET}" \
+            --from-literal=TG_NORM_S3_BUCKET="${S3_BUCKET}" \
+            --from-literal=TG_NORM_S3_USE_SSL="${S3_USE_SSL}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/telegram-normalizer/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          REPO=ghcr.io/pufferfish-io/telegram-normalizer
+          IMAGE="${REPO}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/telegram-normalizer telegram-normalizer=${IMAGE}
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/telegram-normalizer --timeout=120s
+          kubectl -n app get pods -o wide
+
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/telegram-normalizer --tail=200

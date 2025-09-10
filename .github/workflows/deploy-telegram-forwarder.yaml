@@ -7,10 +7,6 @@ on:
         description: "Image tag to deploy (defaults to latest)"
         required: false
         default: "latest"
-      image_repo:
-        description: "Container image repository"
-        required: false
-        default: "ghcr.io/pufferfish-io/telegram-forwarder"
 
 jobs:
   deploy:
@@ -57,10 +53,9 @@ jobs:
       - name: 🖼 Update image tag
         env:
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
-          IMAGE_REPO: ${{ github.event.inputs.image_repo }}
         run: |
           TAG=${IMAGE_TAG:-latest}
-          REPO=${IMAGE_REPO:-ghcr.io/pufferfish-io/telegram-forwarder}
+          REPO=ghcr.io/pufferfish-io/telegram-forwarder
           IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/telegram-forwarder telegram-forwarder=${IMAGE}
