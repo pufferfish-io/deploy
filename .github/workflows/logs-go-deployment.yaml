@@ -10,17 +10,64 @@ on:
         options:
           - telegram-forwarder
           - telegram-normalizer
+      follow:
+        description: "Follow logs (stream)"
+        required: false
+        type: boolean
+        default: false
+      since:
+        description: "Show logs since (e.g. 10m, 1h)"
+        required: false
+        type: string
+        default: "10m"
+      tail:
+        description: "Number of lines to show"
+        required: false
+        type: string
+        default: "300"
+      duration_seconds:
+        description: "When following, stop after N seconds"
+        required: false
+        type: string
+        default: "300"
 jobs:
   logs:
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       DEPLOYMENT: ${{ github.event.inputs.deployment }}
+      FOLLOW: ${{ github.event.inputs.follow }}
+      SINCE: ${{ github.event.inputs.since }}
+      TAIL: ${{ github.event.inputs.tail }}
+      DURATION_SECONDS: ${{ github.event.inputs.duration_seconds }}
     steps:
-      - name: 📡 Tail last 300 and follow
+      - name: 📡 Show logs (snapshot or follow)
         continue-on-error: true
         run: |
+          set -e
           echo "Target deployment: ${DEPLOYMENT} (ns: app)"
-          echo "Showing last 300 lines, then following (job times out in 10 minutes)"
-          kubectl -n app logs deploy/"${DEPLOYMENT}" --tail=300 -f
+          echo "Options: follow=${FOLLOW:-false} since=${SINCE:-10m} tail=${TAIL:-300} duration_seconds=${DURATION_SECONDS:-300}"
+
+          if [ "${FOLLOW}" = "true" ]; then
+            echo "⏳ Following logs with time limit ${DURATION_SECONDS}s"
+            # Cleanup function to stop background processes
+            cleanup() {
+              kill "$LOG_PID" >/dev/null 2>&1 || true
+              kill "$TIMER_PID" >/dev/null 2>&1 || true
+            }
+            # On cancel/interrupt, stop gracefully and exit 0
+            trap 'cleanup; echo "🔚 Cancelled by user, cleaned up."; exit 0' INT TERM
+
+            set +e
+            kubectl -n app logs deploy/"${DEPLOYMENT}" --tail="${TAIL:-300}" -f &
+            LOG_PID=$!
+            ( sleep "${DURATION_SECONDS:-300}"; kill "$LOG_PID" >/dev/null 2>&1 || true ) & TIMER_PID=$!
+            wait "$LOG_PID" || true
+            cleanup
+            set -e
+            echo "⏹️  Stopped following after ${DURATION_SECONDS}s"
+          else
+            echo "🧾 Snapshot logs since ${SINCE} (tail ${TAIL})"
+            kubectl -n app logs deploy/"${DEPLOYMENT}" --since="${SINCE:-10m}" --tail="${TAIL:-300}"
+          fi
