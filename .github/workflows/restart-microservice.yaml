@@ -11,6 +11,7 @@ on:
           - telegram-forwarder
           - telegram-normalizer
           - message-responder
+          - tg-response-preparer
 jobs:
   restart:
     runs-on: self-hosted

@@ -90,7 +90,45 @@ Build & Push (service repository)
   - `golang:1.24.4` builder → `gcr.io/distroless/static:nonroot` runtime
   - Set `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`, build `./cmd/message-responder`
   - Expose `8080`, run as `nonroot`
-- A simple CI on tag push can build and push to GHCR using `${{ secrets.GITHUB_TOKEN }}` as in other services. Target image name should be `ghcr.io/<org-or-user>/message-responder:${{ github.ref_name }}`.
+  - A simple CI on tag push can build and push to GHCR using `${{ secrets.GITHUB_TOKEN }}` as in other services. Target image name should be `ghcr.io/<org-or-user>/message-responder:${{ github.ref_name }}`.
+
+## TG Response Preparer
+
+- Manifest: `k8s/tg-response-preparer/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/tg-response-preparer:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `tg-response-preparer-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (in this deploy repo)
+
+- `TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME`
+- `TGRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME`
+- `TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID`
+- `TGRP_KAFKA_SASL_USERNAME`
+- `TGRP_KAFKA_SASL_PASSWORD`
+- `TGRP_KAFKA_CLIENT_ID`
+- Optional: `TGRP_SERVER_PORT` (default `8080` if omitted)
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-tg-response-preparer.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `tg-response-preparer-env` from GitHub Secrets (above).
+  - Applies `k8s/tg-response-preparer/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/tg-response-preparer:<image_tag>` and waits for rollout.
+
+Build & Push (service repository)
+
+- Example Dockerfile (builder + distroless runtime) and CI:
+  - Dockerfile uses `golang:1.24.4` as builder and `gcr.io/distroless/static:nonroot` as runtime.
+  - Build with `CGO_ENABLED=0 GOOS=linux GOARCH=amd64` and output binary for `./cmd/tg-response-preparer`.
+  - Expose `8080` (adjust to your server port if needed).
+- Example GitHub Actions (in the service repo) to build on tag push and push to GHCR:
+  - Uses `${{ secrets.GITHUB_TOKEN }}` to authenticate to GHCR.
+  - Tags image as `ghcr.io/<org>/<repo>:${{ github.ref_name }}`.
 
 ## Ingresses
 

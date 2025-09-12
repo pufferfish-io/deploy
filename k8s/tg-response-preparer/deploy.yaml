@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tg-response-preparer
+  namespace: app
+  labels:
+    app: tg-response-preparer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tg-response-preparer
+  template:
+    metadata:
+      labels:
+        app: tg-response-preparer
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: tg-response-preparer
+          image: ghcr.io/pufferfish-io/tg-response-preparer:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: tg-response-preparer-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
