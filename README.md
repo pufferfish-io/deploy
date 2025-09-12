@@ -3,6 +3,7 @@
 Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegram Forwarder).
 
 ## Prerequisites
+
 - Kubernetes cluster (k3s/EKS/…) and `kubectl` available on the CI runner.
 - NGINX Ingress Controller (class: `nginx`).
 - cert-manager installed with a `ClusterIssuer` named `letsencrypt-http01`.
@@ -17,6 +18,7 @@ Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegr
   ```
 
 ## Repository Layout
+
 - `k8s/ingress/hello-demo-ingress.yaml`: Ingress for `demo.pufferfish.ru`.
 - `k8s/ingress/keycloak-ingress.yaml`: Ingress for `auth.pufferfish.ru`.
 - `k8s/minio/values-prod.yaml`: Helm values for MinIO (prod).
@@ -24,11 +26,13 @@ Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegr
 - `.github/workflows/*`: GitHub Actions to apply manifests and deploy services.
 
 ## Telegram Forwarder
+
 - Manifest: `k8s/telegram-forwarder/deploy.yaml`
 - Image: `ghcr.io/<repo>:<tag>`; the tag is provided via the workflow input.
 - Environment: loaded from Secret `telegram-forwarder-env` (created/updated by workflow from GitHub Secrets).
 
 Required GitHub Secrets
+
 - `TG_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE`
 - `TG_FORWARDER_KAFKA_TG_MESS_TOPIC_NAME`
 - `TG_FORWARDER_KAFKA_SASL_USERNAME`
@@ -37,6 +41,7 @@ Required GitHub Secrets
 - Optional: `TG_FORWARDER_API_TG_WEB_HOOK_PATH`, `TG_FORWARDER_API_HEALTH_CHECK_PATH`
 
 Deploy (GitHub Actions)
+
 - Workflow: `.github/workflows/deploy-telegram-forwarder.yaml`
 - Inputs:
   - `image_tag` (e.g., `v0.1.5`; defaults to `latest`)
@@ -48,9 +53,47 @@ Deploy (GitHub Actions)
   - Sets the container image to `<image_repo>:<image_tag>` and waits for rollout.
 
 Change domain or webhook path
+
 - Edit host and path in `k8s/telegram-forwarder/deploy.yaml` under the Ingress `rules` section (default host `tg.forwarder.pufferfish.ru`, path `/telegram/webhook`).
 
+## Message Responder
+
+- Manifest: `k8s/message-responder/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/message-responder:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `message-responder-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (in this deploy repo)
+
+- `MSG_RESP_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `MSG_RESP_KAFKA_GROUP_ID`
+- `MSG_RESP_KAFKA_REQUEST_TOPIC_NAME`
+- `MSG_RESP_KAFKA_RESPONSE_TOPIC_NAME`
+- `MSG_RESP_KAFKA_OCR_TOPIC_NAME`
+- `MSG_RESP_KAFKA_SASL_USERNAME`
+- `MSG_RESP_KAFKA_SASL_PASSWORD`
+- `MSG_RESP_KAFKA_CLIENT_ID`
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-message-responder.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `message-responder-env` from GitHub Secrets (above).
+  - Applies `k8s/message-responder/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/message-responder:<image_tag>` and waits for rollout.
+
+Build & Push (service repository)
+
+- In the service repo, use a Dockerfile like:
+  - `golang:1.24.4` builder → `gcr.io/distroless/static:nonroot` runtime
+  - Set `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`, build `./cmd/message-responder`
+  - Expose `8080`, run as `nonroot`
+- A simple CI on tag push can build and push to GHCR using `${{ secrets.GITHUB_TOKEN }}` as in other services. Target image name should be `ghcr.io/<org-or-user>/message-responder:${{ github.ref_name }}`.
+
 ## Ingresses
+
 - Demo: `k8s/ingress/hello-demo-ingress.yaml` → domain `demo.pufferfish.ru`.
   - Workflow: `.github/workflows/deploy-ingress.yaml` (triggered on file change or manual run).
 - Keycloak: `k8s/ingress/keycloak-ingress.yaml` → domain `auth.pufferfish.ru`.
@@ -58,6 +101,7 @@ Change domain or webhook path
 - Both use cert-manager `letsencrypt-http01` and class `nginx`.
 
 ## MinIO
+
 - Deployed via Helm using workflow `.github/workflows/deploy-minio.yaml` (manual run).
 - Required GitHub Secrets:
   - `MINIO_ROOT_USER`
@@ -68,6 +112,7 @@ Change domain or webhook path
 - Update hosts/secret names directly in `values-prod.yaml` if needed.
 
 ## Useful Commands
+
 - Check ingresses:
   ```bash
   kubectl get ingress -n demo -o wide
@@ -81,6 +126,16 @@ Change domain or webhook path
   ```
 
 ## Troubleshooting
+
 - Certificate pending/failed: ensure cert-manager is installed and `ClusterIssuer` `letsencrypt-http01` exists; verify DNS is pointing to the ingress controller.
 - Image pull errors: confirm `ghcr-secret` exists in the `app` namespace and has valid GH credentials.
 - 404 on webhook: verify Ingress host and path match the Telegram webhook URL and the service is healthy (`/healthz`).
+
+## Read logs
+
+```bash
+sudo journalctl -u telegram-forwarder.service -f -n 200 -o short-iso-precise
+sudo journalctl -u telegram-normalizer.service -f -n 200 -o short-iso-precise
+
+sudo journalctl -u telegram-forwarder.service -f -n 200 -o short-iso-precise
+```
