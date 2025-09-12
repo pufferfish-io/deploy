@@ -92,11 +92,11 @@ Build & Push (service repository)
   - Expose `8080`, run as `nonroot`
   - A simple CI on tag push can build and push to GHCR using `${{ secrets.GITHUB_TOKEN }}` as in other services. Target image name should be `ghcr.io/<org-or-user>/message-responder:${{ github.ref_name }}`.
 
-## TG Response Preparer
+## Telegram Response Preparer
 
-- Manifest: `k8s/tg-response-preparer/deploy.yaml`
-- Image: `ghcr.io/pufferfish-io/tg-response-preparer:<tag>`; tag is provided via the deploy workflow input.
-- Environment: loaded from Secret `tg-response-preparer-env` (created/updated by workflow from GitHub Secrets).
+- Manifest: `k8s/telegram-response-preparer/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/telegram-response-preparer:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `telegram-response-preparer-env` (created/updated by workflow from GitHub Secrets).
 
 Required GitHub Secrets (in this deploy repo)
 
@@ -111,14 +111,14 @@ Required GitHub Secrets (in this deploy repo)
 
 Deploy (GitHub Actions)
 
-- Workflow: `.github/workflows/deploy-tg-response-preparer.yaml`
+- Workflow: `.github/workflows/deploy-telegram-response-preparer.yaml`
 - Inputs:
   - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
 - What it does:
   - Ensures namespace `app`.
-  - Creates/updates Secret `tg-response-preparer-env` from GitHub Secrets (above).
-  - Applies `k8s/tg-response-preparer/deploy.yaml`.
-  - Sets the container image to `ghcr.io/pufferfish-io/tg-response-preparer:<image_tag>` and waits for rollout.
+  - Creates/updates Secret `telegram-response-preparer-env` from GitHub Secrets (above).
+  - Applies `k8s/telegram-response-preparer/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/telegram-response-preparer:<image_tag>` and waits for rollout.
 
 Build & Push (service repository)
 

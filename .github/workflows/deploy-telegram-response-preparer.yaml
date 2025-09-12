@@ -1,4 +1,4 @@
-name: 🚀 Deploy tg-response-preparer
+name: 🚀 Deploy telegram-response-preparer
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
           CLIENT_ID: ${{ secrets.TGRP_KAFKA_CLIENT_ID }}
           SERVER_PORT: ${{ secrets.TGRP_SERVER_PORT }}
         run: |
-          kubectl -n app create secret generic tg-response-preparer-env \
+          kubectl -n app create secret generic telegram-response-preparer-env \
             --from-literal=TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
             --from-literal=TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME="${TG_TOPIC}" \
             --from-literal=TGRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME="${RESP_TOPIC}" \
@@ -48,26 +48,26 @@ jobs:
 
       - name: 📤 Apply manifests
         run: |
-          kubectl -n app apply -f k8s/tg-response-preparer/deploy.yaml
+          kubectl -n app apply -f k8s/telegram-response-preparer/deploy.yaml
 
       - name: 🖼 Update image tag
         env:
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
           TAG=${IMAGE_TAG:-latest}
-          REPO=ghcr.io/pufferfish-io/tg-response-preparer
+          REPO=ghcr.io/pufferfish-io/telegram-response-preparer
           IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
-          kubectl -n app set image deployment/tg-response-preparer tg-response-preparer=${IMAGE}
+          kubectl -n app set image deployment/telegram-response-preparer telegram-response-preparer=${IMAGE}
 
       - name: 🔎 Rollout status
         run: |
           set -e
-          kubectl -n app rollout status deployment/tg-response-preparer --timeout=120s
+          kubectl -n app rollout status deployment/telegram-response-preparer --timeout=120s
           kubectl -n app get pods -o wide
 
       - name: 📝 Recent logs (best effort)
         continue-on-error: true
         run: |
-          kubectl -n app logs deploy/tg-response-preparer --tail=200
+          kubectl -n app logs deploy/telegram-response-preparer --tail=200
 

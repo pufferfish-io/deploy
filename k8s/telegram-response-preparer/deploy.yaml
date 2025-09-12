@@ -6,29 +6,29 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tg-response-preparer
+  name: telegram-response-preparer
   namespace: app
   labels:
-    app: tg-response-preparer
+    app: telegram-response-preparer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: tg-response-preparer
+      app: telegram-response-preparer
   template:
     metadata:
       labels:
-        app: tg-response-preparer
+        app: telegram-response-preparer
     spec:
       imagePullSecrets:
         - name: ghcr-secret
       containers:
-        - name: tg-response-preparer
-          image: ghcr.io/pufferfish-io/tg-response-preparer:latest
+        - name: telegram-response-preparer
+          image: ghcr.io/pufferfish-io/telegram-response-preparer:latest
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
-                name: tg-response-preparer-env
+                name: telegram-response-preparer-env
           resources:
             requests:
               cpu: 50m
