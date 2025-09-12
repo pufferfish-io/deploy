@@ -10,6 +10,7 @@ on:
         options:
           - telegram-forwarder
           - telegram-normalizer
+          - message-responder
 jobs:
   restart:
     runs-on: self-hosted

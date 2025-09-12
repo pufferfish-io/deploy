@@ -10,6 +10,7 @@ on:
         options:
           - telegram-forwarder
           - telegram-normalizer
+          - message-responder
       since:
         description: "Show logs since (e.g. 10m, 1h)"
         required: false
