@@ -26,24 +26,24 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          BOOTSTRAP: ${{ secrets.TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          TG_TOPIC: ${{ secrets.TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME }}
-          GROUP_ID: ${{ secrets.TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
-          SASL_USER: ${{ secrets.TGRP_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.TGRP_KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ secrets.TGRP_KAFKA_CLIENT_ID }}
-          SERVER_PORT: ${{ secrets.TGRP_SERVER_PORT }}
-          TG_TOKEN: ${{ secrets.TGRP_TELEGRAM_TOKEN }}
+          BOOTSTRAP: ${{ secrets.TGSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          TG_TOPIC: ${{ secrets.TGSENDER_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.TGSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.TGSENDER_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.TGSENDER_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.TGSENDER_KAFKA_CLIENT_ID }}
+          SERVER_PORT: ${{ secrets.TGSENDER_SERVER_PORT }}
+          TG_TOKEN: ${{ secrets.TGSENDER_TELEGRAM_TOKEN }}
         run: |
           kubectl -n app create secret generic telegram-sender-env \
-            --from-literal=TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME="${TG_TOPIC}" \
-            --from-literal=TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
-            --from-literal=TGRP_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=TGRP_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=TGRP_KAFKA_CLIENT_ID="${CLIENT_ID}" \
-            --from-literal=TGRP_SERVER_PORT="${SERVER_PORT:-8084}" \
-            --from-literal=TGRP_TELEGRAM_TOKEN="${TG_TOKEN}" \
+            --from-literal=TGSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=TGSENDER_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME="${TG_TOPIC}" \
+            --from-literal=TGSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
+            --from-literal=TGSENDER_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=TGSENDER_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=TGSENDER_KAFKA_CLIENT_ID="${CLIENT_ID}" \
+            --from-literal=TGSENDER_SERVER_PORT="${SERVER_PORT:-8084}" \
+            --from-literal=TGSENDER_TELEGRAM_TOKEN="${TG_TOKEN}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
@@ -70,4 +70,3 @@ jobs:
         continue-on-error: true
         run: |
           kubectl -n app logs deploy/telegram-sender --tail=200
-
