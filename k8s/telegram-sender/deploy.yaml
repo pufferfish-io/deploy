@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegram-sender
+  namespace: app
+  labels:
+    app: telegram-sender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telegram-sender
+  template:
+    metadata:
+      labels:
+        app: telegram-sender
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: telegram-sender
+          image: ghcr.io/pufferfish-io/telegram-sender:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: telegram-sender-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+

@@ -12,6 +12,7 @@ on:
           - telegram-normalizer
           - message-responder
           - telegram-response-preparer
+          - telegram-sender
       since:
         description: "Show logs since (e.g. 10m, 1h)"
         required: false

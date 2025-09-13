@@ -130,6 +130,34 @@ Build & Push (service repository)
   - Uses `${{ secrets.GITHUB_TOKEN }}` to authenticate to GHCR.
   - Tags image as `ghcr.io/<org>/<repo>:${{ github.ref_name }}`.
 
+## Telegram Sender
+
+- Manifest: `k8s/telegram-sender/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/telegram-sender:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `telegram-sender-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME`
+- `TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID`
+- `TGRP_KAFKA_SASL_USERNAME`
+- `TGRP_KAFKA_SASL_PASSWORD`
+- `TGRP_KAFKA_CLIENT_ID`
+- `TGRP_TELEGRAM_TOKEN`
+- Optional: `TGRP_SERVER_PORT` (default `8084` if omitted)
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-telegram-sender.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `telegram-sender-env` from GitHub Secrets (above).
+  - Applies `k8s/telegram-sender/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/telegram-sender:<image_tag>` and waits for rollout.
+
 ## Ingresses
 
 - Demo: `k8s/ingress/hello-demo-ingress.yaml` → domain `demo.pufferfish.ru`.

@@ -1,0 +1,73 @@
+name: 🚀 Deploy telegram-sender
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via kubectl
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🔐 Apply/update env Secret
+        env:
+          BOOTSTRAP: ${{ secrets.TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          TG_TOPIC: ${{ secrets.TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.TGRP_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.TGRP_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.TGRP_KAFKA_CLIENT_ID }}
+          SERVER_PORT: ${{ secrets.TGRP_SERVER_PORT }}
+          TG_TOKEN: ${{ secrets.TGRP_TELEGRAM_TOKEN }}
+        run: |
+          kubectl -n app create secret generic telegram-sender-env \
+            --from-literal=TGRP_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=TGRP_KAFKA_TELEGRAM_MESSAGE_TOPIC_NAME="${TG_TOPIC}" \
+            --from-literal=TGRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
+            --from-literal=TGRP_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=TGRP_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=TGRP_KAFKA_CLIENT_ID="${CLIENT_ID}" \
+            --from-literal=TGRP_SERVER_PORT="${SERVER_PORT:-8084}" \
+            --from-literal=TGRP_TELEGRAM_TOKEN="${TG_TOKEN}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/telegram-sender/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          REPO=ghcr.io/pufferfish-io/telegram-sender
+          IMAGE="${REPO}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/telegram-sender telegram-sender=${IMAGE}
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/telegram-sender --timeout=120s
+          kubectl -n app get pods -o wide
+
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/telegram-sender --tail=200
+
