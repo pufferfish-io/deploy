@@ -161,7 +161,8 @@ Deploy (GitHub Actions)
 ## Doc2Text
 
 - Manifest: `k8s/doc2text/deploy.yaml`
-- Ingress: `doc2text.pufferfish.ru` (TLS `doc2text-tls`), path `/` and `/healthz`.
+- Ingress (HTTP): `doc2text.pufferfish.ru` (TLS `doc2text-tls`), пути `/` и `/healthz`.
+- Ingress (gRPC): `grpc.doc2text.pufferfish.ru` (TLS `grpc-doc2text-tls`), backend `doc2text:50052`.
 - Image: `ghcr.io/pufferfish-io/doc2text:<tag>`; tag is provided via the deploy workflow input.
 - Environment: loaded from Secret `doc2text-env` (created/updated by workflow from GitHub Secrets).
 
@@ -200,6 +201,19 @@ Deploy (GitHub Actions)
   - Creates/updates Secret `doc2text-env` from GitHub Secrets (above).
   - Applies `k8s/doc2text/deploy.yaml`.
   - Sets the container image to `ghcr.io/pufferfish-io/doc2text:<image_tag>` and waits for rollout.
+
+gRPC доступ
+
+- Внутри кластера: `doc2text.app.svc.cluster.local:50052`.
+- Снаружи: `grpc.doc2text.pufferfish.ru:443` (HTTP/2 TLS, NGINX Ingress, аннотация `backend-protocol: GRPC`).
+- Пример вызова (если включён OIDC):
+  ```bash
+  grpcurl -H "authorization: Bearer $TOKEN" \
+    grpc.doc2text.pufferfish.ru:443 \
+    ocr.v1.OcrService/Process \
+    -d '{"objectkey":"path/in/s3"}'
+  ```
+  Если на сервере нет gRPC reflection, передайте proto-файлы через `-proto`/`-import-path`.
 
 Build & Push (service repository)
 
