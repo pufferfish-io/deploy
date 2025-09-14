@@ -13,6 +13,7 @@ on:
           - message-responder
           - telegram-response-preparer
           - telegram-sender
+          - doc2text
 jobs:
   restart:
     runs-on: self-hosted
