@@ -158,6 +158,57 @@ Deploy (GitHub Actions)
   - Applies `k8s/telegram-sender/deploy.yaml`.
   - Sets the container image to `ghcr.io/pufferfish-io/telegram-sender:<image_tag>` and waits for rollout.
 
+## Doc2Text
+
+- Manifest: `k8s/doc2text/deploy.yaml`
+- Ingress: `doc2text.pufferfish.ru` (TLS `doc2text-tls`), path `/` and `/healthz`.
+- Image: `ghcr.io/pufferfish-io/doc2text:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `doc2text-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `DOC2TEXT_ADDR`
+- `DOC2TEXT_PROVIDER`
+- `DOC2TEXT_MAX_FILE_MB`
+- `DOC2TEXT_MAX_FILES`
+- `DOC2TEXT_YC_API_KEY`
+- `DOC2TEXT_YC_FOLDER_ID`
+- `DOC2TEXT_YC_ENDPOINT`
+- `DOC2TEXT_YC_DEFAULT_MODEL`
+- `DOC2TEXT_YC_MIN_CONFIDENCE`
+- `DOC2TEXT_YC_HTTP_TIMEOUT`
+- `DOC2TEXT_YC_LANGUAGES`
+- `DOC2TEXT_S3_ENDPOINT`
+- `DOC2TEXT_S3_ACCESS_KEY`
+- `DOC2TEXT_S3_SECRET_KEY`
+- `DOC2TEXT_S3_BUCKET`
+- `DOC2TEXT_S3_USE_SSL`
+- `DOC2TEXT_HTTP_ADDR`
+- `DOC2TEXT_HTTP_HEALTH_CHECK_PATH`
+- `DOC2TEXT_OIDC_ISSUER`
+- `DOC2TEXT_OIDC_JWKS_URL`
+- `DOC2TEXT_OIDC_AUDIENCE`
+- `DOC2TEXT_OIDC_EXPECTED_AZP`
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-doc2text.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `doc2text-env` from GitHub Secrets (above).
+  - Applies `k8s/doc2text/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/doc2text:<image_tag>` and waits for rollout.
+
+Build & Push (service repository)
+
+- Use a two-stage Dockerfile (Go builder → distroless runtime) that builds `./cmd/doc2text` for Linux amd64 and runs as nonroot, exposing ports as required by the service.
+- Example CI (in the service repo) on tag push:
+  - Logs into GHCR with `${{ secrets.GITHUB_TOKEN }}`
+  - Builds with build args `VERSION`, `COMMIT`, `BUILT_AT`
+  - Pushes `ghcr.io/<org>/<service>:${{ github.ref_name }}`
+
 ## Ingresses
 
 - Demo: `k8s/ingress/hello-demo-ingress.yaml` → domain `demo.pufferfish.ru`.

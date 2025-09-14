@@ -1,0 +1,106 @@
+name: 🚀 Deploy doc2text
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via kubectl
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🔐 Apply/update env Secret
+        env:
+          DOC2TEXT_ADDR: ${{ secrets.DOC2TEXT_ADDR }}
+          DOC2TEXT_PROVIDER: ${{ secrets.DOC2TEXT_PROVIDER }}
+          DOC2TEXT_MAX_FILE_MB: ${{ secrets.DOC2TEXT_MAX_FILE_MB }}
+          DOC2TEXT_MAX_FILES: ${{ secrets.DOC2TEXT_MAX_FILES }}
+
+          DOC2TEXT_YC_API_KEY: ${{ secrets.DOC2TEXT_YC_API_KEY }}
+          DOC2TEXT_YC_FOLDER_ID: ${{ secrets.DOC2TEXT_YC_FOLDER_ID }}
+          DOC2TEXT_YC_ENDPOINT: ${{ secrets.DOC2TEXT_YC_ENDPOINT }}
+          DOC2TEXT_YC_DEFAULT_MODEL: ${{ secrets.DOC2TEXT_YC_DEFAULT_MODEL }}
+          DOC2TEXT_YC_MIN_CONFIDENCE: ${{ secrets.DOC2TEXT_YC_MIN_CONFIDENCE }}
+          DOC2TEXT_YC_HTTP_TIMEOUT: ${{ secrets.DOC2TEXT_YC_HTTP_TIMEOUT }}
+          DOC2TEXT_YC_LANGUAGES: ${{ secrets.DOC2TEXT_YC_LANGUAGES }}
+
+          DOC2TEXT_S3_ENDPOINT: ${{ secrets.DOC2TEXT_S3_ENDPOINT }}
+          DOC2TEXT_S3_ACCESS_KEY: ${{ secrets.DOC2TEXT_S3_ACCESS_KEY }}
+          DOC2TEXT_S3_SECRET_KEY: ${{ secrets.DOC2TEXT_S3_SECRET_KEY }}
+          DOC2TEXT_S3_BUCKET: ${{ secrets.DOC2TEXT_S3_BUCKET }}
+          DOC2TEXT_S3_USE_SSL: ${{ secrets.DOC2TEXT_S3_USE_SSL }}
+
+          DOC2TEXT_HTTP_ADDR: ${{ secrets.DOC2TEXT_HTTP_ADDR }}
+          DOC2TEXT_HTTP_HEALTH_CHECK_PATH: ${{ secrets.DOC2TEXT_HTTP_HEALTH_CHECK_PATH }}
+          DOC2TEXT_OIDC_ISSUER: ${{ secrets.DOC2TEXT_OIDC_ISSUER }}
+          DOC2TEXT_OIDC_JWKS_URL: ${{ secrets.DOC2TEXT_OIDC_JWKS_URL }}
+          DOC2TEXT_OIDC_AUDIENCE: ${{ secrets.DOC2TEXT_OIDC_AUDIENCE }}
+          DOC2TEXT_OIDC_EXPECTED_AZP: ${{ secrets.DOC2TEXT_OIDC_EXPECTED_AZP }}
+        run: |
+          kubectl -n app create secret generic doc2text-env \
+            --from-literal=DOC2TEXT_ADDR="${DOC2TEXT_ADDR:-:50052}" \
+            --from-literal=DOC2TEXT_PROVIDER="${DOC2TEXT_PROVIDER:-mock}" \
+            --from-literal=DOC2TEXT_MAX_FILE_MB="${DOC2TEXT_MAX_FILE_MB:-25}" \
+            --from-literal=DOC2TEXT_MAX_FILES="${DOC2TEXT_MAX_FILES:-50}" \
+            \
+            --from-literal=DOC2TEXT_YC_API_KEY="${DOC2TEXT_YC_API_KEY}" \
+            --from-literal=DOC2TEXT_YC_FOLDER_ID="${DOC2TEXT_YC_FOLDER_ID}" \
+            --from-literal=DOC2TEXT_YC_ENDPOINT="${DOC2TEXT_YC_ENDPOINT:-https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText}" \
+            --from-literal=DOC2TEXT_YC_DEFAULT_MODEL="${DOC2TEXT_YC_DEFAULT_MODEL:-page}" \
+            --from-literal=DOC2TEXT_YC_MIN_CONFIDENCE="${DOC2TEXT_YC_MIN_CONFIDENCE:-0.7}" \
+            --from-literal=DOC2TEXT_YC_HTTP_TIMEOUT="${DOC2TEXT_YC_HTTP_TIMEOUT:-20s}" \
+            --from-literal=DOC2TEXT_YC_LANGUAGES="${DOC2TEXT_YC_LANGUAGES:-*}" \
+            \
+            --from-literal=DOC2TEXT_S3_ENDPOINT="${DOC2TEXT_S3_ENDPOINT}" \
+            --from-literal=DOC2TEXT_S3_ACCESS_KEY="${DOC2TEXT_S3_ACCESS_KEY}" \
+            --from-literal=DOC2TEXT_S3_SECRET_KEY="${DOC2TEXT_S3_SECRET_KEY}" \
+            --from-literal=DOC2TEXT_S3_BUCKET="${DOC2TEXT_S3_BUCKET}" \
+            --from-literal=DOC2TEXT_S3_USE_SSL="${DOC2TEXT_S3_USE_SSL:-true}" \
+            \
+            --from-literal=DOC2TEXT_HTTP_ADDR="${DOC2TEXT_HTTP_ADDR:-:8086}" \
+            --from-literal=DOC2TEXT_HTTP_HEALTH_CHECK_PATH="${DOC2TEXT_HTTP_HEALTH_CHECK_PATH:-/healthz}" \
+            --from-literal=DOC2TEXT_OIDC_ISSUER="${DOC2TEXT_OIDC_ISSUER:-https://auth.pufferfish.ru/realms/pufferfish}" \
+            --from-literal=DOC2TEXT_OIDC_JWKS_URL="${DOC2TEXT_OIDC_JWKS_URL:-https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/certs}" \
+            --from-literal=DOC2TEXT_OIDC_AUDIENCE="${DOC2TEXT_OIDC_AUDIENCE:-doc2text}" \
+            --from-literal=DOC2TEXT_OIDC_EXPECTED_AZP="${DOC2TEXT_OIDC_EXPECTED_AZP:-message-responder-ocr}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/doc2text/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          REPO=ghcr.io/pufferfish-io/doc2text
+          IMAGE="${REPO}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/doc2text doc2text=${IMAGE}
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/doc2text --timeout=180s
+          kubectl -n app get pods -o wide
+
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/doc2text --tail=200

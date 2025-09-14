@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doc2text
+  namespace: app
+  labels:
+    app: doc2text
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doc2text
+  template:
+    metadata:
+      labels:
+        app: doc2text
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: doc2text
+          image: ghcr.io/pufferfish-io/doc2text:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8086
+            - name: grpc
+              containerPort: 50052
+          envFrom:
+            - secretRef:
+                name: doc2text-env
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8086
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8086
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doc2text
+  namespace: app
+  labels:
+    app: doc2text
+spec:
+  type: ClusterIP
+  selector:
+    app: doc2text
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8086
+      targetPort: 8086
+    - name: grpc
+      protocol: TCP
+      port: 50052
+      targetPort: 50052
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: doc2text
+  namespace: app
+  labels:
+    app: doc2text
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - doc2text.pufferfish.ru
+      secretName: doc2text-tls
+  rules:
+    - host: doc2text.pufferfish.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doc2text
+                port:
+                  number: 8086
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: doc2text
+                port:
+                  number: 8086
