@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-responder-ocr
+  namespace: app
+  labels:
+    app: message-responder-ocr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-responder-ocr
+  template:
+    metadata:
+      labels:
+        app: message-responder-ocr
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: message-responder-ocr
+          image: ghcr.io/pufferfish-io/message-responder-ocr:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: message-responder-ocr-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+

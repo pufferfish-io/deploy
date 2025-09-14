@@ -11,6 +11,7 @@ on:
           - telegram-forwarder
           - telegram-normalizer
           - message-responder
+          - message-responder-ocr
           - telegram-response-preparer
           - telegram-sender
           - doc2text

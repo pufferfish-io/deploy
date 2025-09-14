@@ -84,6 +84,37 @@ Deploy (GitHub Actions)
   - Applies `k8s/message-responder/deploy.yaml`.
   - Sets the container image to `ghcr.io/pufferfish-io/message-responder:<image_tag>` and waits for rollout.
 
+## Message Responder OCR
+
+- Manifest: `k8s/message-responder-ocr/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/message-responder-ocr:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `message-responder-ocr-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `MSG_RESP_OCR_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `MSG_RESP_OCR_KAFKA_GROUP_ID`
+- `MSG_RESP_OCR_KAFKA_REQUEST_TOPIC_NAME`
+- `MSG_RESP_OCR_KAFKA_RESPONSE_TOPIC_NAME`
+- `MSG_RESP_OCR_KAFKA_SASL_USERNAME`
+- `MSG_RESP_OCR_KAFKA_SASL_PASSWORD`
+- `MSG_RESP_OCR_KAFKA_CLIENT_ID`
+- `MSG_RESP_OCR_DOC3TEXT_ACCESS_TOKEN_URL`
+- `MSG_RESP_OCR_DOC3TEXT_CLIENT_ID`
+- `MSG_RESP_OCR_DOC3TEXT_CLIENT_SECRET`
+- `MSG_RESP_OCR_DOC3TEXT_G_RPC_URL`
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-message-responder-ocr.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `message-responder-ocr-env` from GitHub Secrets (above).
+  - Applies `k8s/message-responder-ocr/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/message-responder-ocr:<image_tag>` and waits for rollout.
+
 Build & Push (service repository)
 
 - In the service repo, use a Dockerfile like:
