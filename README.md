@@ -56,6 +56,37 @@ Change domain or webhook path
 
 - Edit host and path in `k8s/telegram-forwarder/deploy.yaml` under the Ingress `rules` section (default host `tg.forwarder.pufferfish.ru`, path `/telegram/webhook`).
 
+## VK Forwarder
+
+- Manifest: `k8s/vk-forwarder/deploy.yaml`
+- Image: `ghcr.io/<repo>:<tag>`; the tag is provided via the workflow input.
+- Environment: loaded from Secret `vk-forwarder-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `VK_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `VK_FORWARDER_KAFKA_VK_MESS_TOPIC_NAME`
+- `VK_FORWARDER_KAFKA_SASL_USERNAME`
+- `VK_FORWARDER_KAFKA_SASL_PASSWORD`
+- `VK_FORWARDER_VK_CONFIRMATION`
+- `VK_FORWARDER_VK_SECRET`
+- Optional: `VK_FORWARDER_SERVER_ADDR`, `VK_FORWARDER_API_VK_WEB_HOOK_PATH`, `VK_FORWARDER_API_HEALTH_CHECK_PATH`
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-vk-forwarder.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `vk-forwarder-env` from GitHub Secrets.
+  - Applies `k8s/vk-forwarder/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/vk-forwarder:<image_tag>` and waits for rollout.
+
+Ingress defaults
+
+- Host `vkforwarder.pufferfish.ru` with webhook path `/webhook` and health check `/healthz`. Update `k8s/vk-forwarder/deploy.yaml` if the domain or paths change.
+
 ## Message Responder
 
 - Manifest: `k8s/message-responder/deploy.yaml`

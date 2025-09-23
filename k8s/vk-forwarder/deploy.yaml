@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vk-forwarder
+  namespace: app
+  labels:
+    app: vk-forwarder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vk-forwarder
+  template:
+    metadata:
+      labels:
+        app: vk-forwarder
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: vk-forwarder
+          image: ghcr.io/pufferfish-io/vk-forwarder:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: vk-forwarder-env
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vk-forwarder
+  namespace: app
+  labels:
+    app: vk-forwarder
+spec:
+  type: ClusterIP
+  selector:
+    app: vk-forwarder
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vk-forwarder
+  namespace: app
+  labels:
+    app: vk-forwarder
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 500m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - vkforwarder.pufferfish.ru
+      secretName: vk-forwarder-tls
+  rules:
+    - host: vkforwarder.pufferfish.ru
+      http:
+        paths:
+          - path: /webhook
+            pathType: Prefix
+            backend:
+              service:
+                name: vk-forwarder
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: vk-forwarder
+                port:
+                  number: 8080
