@@ -80,24 +80,6 @@ jobs:
             --from-literal=VK_NORM_S3_USE_SSL="${S3_USE_SSL}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: 🧪 Проверить Kubernetes Secret (без значений)
-        run: |
-          set -euo pipefail
-          echo "🔍 Проверяем ключи vk-normalizer-env"
-          kubectl -n app get secret vk-normalizer-env -o json |
-            python3 - <<'PY'
-import sys, json, base64
-secret = json.load(sys.stdin)
-data = secret.get("data", {})
-if not data:
-    print("❌ Секрет empty: нет ключей")
-    sys.exit(1)
-for key, value in data.items():
-    length = len(base64.b64decode(value.encode()))
-    print(f"{key}: {length} bytes")
-print("✅ Kubernetes secret содержит все ключи (значения не показываем)")
-PY
-
       - name: 📤 Apply manifests
         run: |
           kubectl -n app apply -f k8s/vk-normalizer/deploy.yaml
