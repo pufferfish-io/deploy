@@ -87,6 +87,37 @@ Ingress defaults
 
 - Host `vkforwarder.pufferfish.ru` with webhook path `/webhook` and health check `/healthz`. Update `k8s/vk-forwarder/deploy.yaml` if the domain or paths change.
 
+## VK Normalizer
+
+- Manifest: `k8s/vk-normalizer/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/vk-normalizer:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `vk-normalizer-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `VK_NORM_KAFKA_GROUP_ID`
+- `VK_NORM_KAFKA_SASL_USERNAME`
+- `VK_NORM_KAFKA_SASL_PASSWORD`
+- `VK_NORM_KAFKA_VK_MESS_TOPIC_NAME`
+- `VK_NORM_KAFKA_NORMALIZER_TOPIC_NAME`
+- `VK_NORM_S3_ENDPOINT`
+- `VK_NORM_S3_ACCESS_KEY`
+- `VK_NORM_S3_SECRET_KEY`
+- `VK_NORM_S3_BUCKET`
+- `VK_NORM_S3_USE_SSL`
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-vk-normalizer.yaml`
+- Inputs:
+  - `image_tag` (defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `vk-normalizer-env` from GitHub Secrets (above).
+  - Applies `k8s/vk-normalizer/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/vk-normalizer:<image_tag>` and waits for rollout.
+
 ## Message Responder
 
 - Manifest: `k8s/message-responder/deploy.yaml`

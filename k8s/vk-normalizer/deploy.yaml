@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vk-normalizer
+  namespace: app
+  labels:
+    app: vk-normalizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vk-normalizer
+  template:
+    metadata:
+      labels:
+        app: vk-normalizer
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: vk-normalizer
+          image: ghcr.io/pufferfish-io/vk-normalizer:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: vk-normalizer-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
