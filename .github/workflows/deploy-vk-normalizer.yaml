@@ -24,6 +24,34 @@ jobs:
         run: |
           kubectl get ns app || kubectl create ns app
 
+      - name: 🔍 Проверить значения GitHub Secrets
+        env:
+          BOOTSTRAP: ${{ secrets.VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ secrets.VK_NORM_KAFKA_GROUP_ID }}
+          SASL_USER: ${{ secrets.VK_NORM_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.VK_NORM_KAFKA_SASL_PASSWORD }}
+          TOPIC_VK: ${{ secrets.VK_NORM_KAFKA_VK_MESS_TOPIC_NAME }}
+          TOPIC_NORMALIZED: ${{ secrets.VK_NORM_KAFKA_NORMALIZER_TOPIC_NAME }}
+          S3_ENDPOINT: ${{ secrets.VK_NORM_S3_ENDPOINT }}
+          S3_ACCESS: ${{ secrets.VK_NORM_S3_ACCESS_KEY }}
+          S3_SECRET: ${{ secrets.VK_NORM_S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.VK_NORM_S3_BUCKET }}
+          S3_USE_SSL: ${{ secrets.VK_NORM_S3_USE_SSL }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for var in BOOTSTRAP GROUP_ID SASL_USER SASL_PASS TOPIC_VK TOPIC_NORMALIZED S3_ENDPOINT S3_ACCESS S3_SECRET S3_BUCKET S3_USE_SSL; do
+            if [ -z "${!var:-}" ]; then
+              missing+=("${var}")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Пустые GitHub Secrets: ${missing[*]}"
+            echo "Добавь значения и перезапусти workflow."
+            exit 1
+          fi
+          echo "✅ Все требуемые GitHub Secrets заданы."
+
       - name: 🔐 Apply/update env Secret
         env:
           BOOTSTRAP: ${{ secrets.VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
@@ -52,6 +80,24 @@ jobs:
             --from-literal=VK_NORM_S3_USE_SSL="${S3_USE_SSL}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: 🧪 Проверить Kubernetes Secret (без значений)
+        run: |
+          set -euo pipefail
+          echo "🔍 Проверяем ключи vk-normalizer-env"
+          kubectl -n app get secret vk-normalizer-env -o json |
+            python3 - <<'PY'
+import sys, json, base64
+secret = json.load(sys.stdin)
+data = secret.get("data", {})
+if not data:
+    print("❌ Секрет empty: нет ключей")
+    sys.exit(1)
+for key, value in data.items():
+    length = len(base64.b64decode(value.encode()))
+    print(f"{key}: {length} bytes")
+print("✅ Kubernetes secret содержит все ключи (значения не показываем)")
+PY
+
       - name: 📤 Apply manifests
         run: |
           kubectl -n app apply -f k8s/vk-normalizer/deploy.yaml
@@ -73,6 +119,7 @@ jobs:
           kubectl -n app get pods -o wide
 
       - name: 📝 Recent logs (best effort)
+        if: ${{ always() }}
         continue-on-error: true
         run: |
           kubectl -n app logs deploy/vk-normalizer --tail=200
