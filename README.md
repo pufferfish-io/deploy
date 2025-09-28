@@ -223,6 +223,34 @@ Build & Push (service repository)
   - Uses `${{ secrets.GITHUB_TOKEN }}` to authenticate to GHCR.
   - Tags image as `ghcr.io/<org>/<repo>:${{ github.ref_name }}`.
 
+## VK Response Preparer
+
+- Manifest: `k8s/vk-response-preparer/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/vk-response-preparer:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `vk-response-preparer-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME`
+- `VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME`
+- `VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID`
+- `VKRP_KAFKA_SASL_USERNAME`
+- `VKRP_KAFKA_SASL_PASSWORD`
+- `VKRP_KAFKA_CLIENT_ID`
+- Optional: `VKRP_SERVER_PORT` (default `8083` if omitted)
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-vk-response-preparer.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `vk-response-preparer-env` from GitHub Secrets (above).
+  - Applies `k8s/vk-response-preparer/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/vk-response-preparer:<image_tag>` and waits for rollout.
+
 ## Telegram Sender
 
 - Manifest: `k8s/telegram-sender/deploy.yaml`

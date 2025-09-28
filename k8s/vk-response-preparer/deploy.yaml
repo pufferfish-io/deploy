@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vk-response-preparer
+  namespace: app
+  labels:
+    app: vk-response-preparer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vk-response-preparer
+  template:
+    metadata:
+      labels:
+        app: vk-response-preparer
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: vk-response-preparer
+          image: ghcr.io/pufferfish-io/vk-response-preparer:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: vk-response-preparer-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+

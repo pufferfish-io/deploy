@@ -1,0 +1,73 @@
+name: 🚀 Deploy vk-response-preparer
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via kubectl
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🔐 Apply/update env Secret
+        env:
+          BOOTSTRAP: ${{ secrets.VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ secrets.VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME }}
+          RESP_TOPIC: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.VKRP_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.VKRP_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.VKRP_KAFKA_CLIENT_ID }}
+          SERVER_PORT: ${{ secrets.VKRP_SERVER_PORT }}
+        run: |
+          kubectl -n app create secret generic vk-response-preparer-env \
+            --from-literal=VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME="${VK_TOPIC}" \
+            --from-literal=VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME="${RESP_TOPIC}" \
+            --from-literal=VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
+            --from-literal=VKRP_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=VKRP_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=VKRP_KAFKA_CLIENT_ID="${CLIENT_ID}" \
+            --from-literal=VKRP_SERVER_PORT="${SERVER_PORT:-8083}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/vk-response-preparer/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          REPO=ghcr.io/pufferfish-io/vk-response-preparer
+          IMAGE="${REPO}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/vk-response-preparer vk-response-preparer=${IMAGE}
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/vk-response-preparer --timeout=120s
+          kubectl -n app get pods -o wide
+
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/vk-response-preparer --tail=200
+
