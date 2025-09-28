@@ -24,6 +24,62 @@ jobs:
         run: |
           kubectl get ns app || kubectl create ns app
 
+      - name: 🔍 Проверить GitHub Secrets (env)
+        env:
+          BOOTSTRAP: ${{ secrets.VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ secrets.VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME }}
+          RESP_TOPIC: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.VKRP_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.VKRP_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.VKRP_KAFKA_CLIENT_ID }}
+          SERVER_PORT: ${{ secrets.VKRP_SERVER_PORT }}
+        run: |
+          set -euo pipefail
+          echo "Требуемые ключи (GitHub Secrets):"
+          echo "- VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE"
+          echo "- VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME"
+          echo "- VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME"
+          echo "- VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
+          echo "- VKRP_KAFKA_SASL_USERNAME"
+          echo "- VKRP_KAFKA_SASL_PASSWORD"
+          echo "- VKRP_KAFKA_CLIENT_ID"
+          echo "Опционально: VKRP_SERVER_PORT (по умолчанию 8083)"
+
+          pairs=(
+            "BOOTSTRAP=VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE"
+            "VK_TOPIC=VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME"
+            "RESP_TOPIC=VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME"
+            "GROUP_ID=VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
+            "SASL_USER=VKRP_KAFKA_SASL_USERNAME"
+            "SASL_PASS=VKRP_KAFKA_SASL_PASSWORD"
+            "CLIENT_ID=VKRP_KAFKA_CLIENT_ID"
+          )
+
+          missing=()
+          for pair in "${pairs[@]}"; do
+            envvar="${pair%%=*}"
+            secret="${pair#*=}"
+            if [ -z "${!envvar:-}" ]; then
+              echo "✗ ${secret}: ПУСТО"
+              missing+=("${secret}")
+            else
+              echo "✓ ${secret}: OK"
+            fi
+          done
+
+          if [ -z "${SERVER_PORT:-}" ]; then
+            echo "• VKRP_SERVER_PORT: не задан (будет использовано 8083)"
+          else
+            echo "• VKRP_SERVER_PORT: задан"
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Отсутствуют/пустые Secrets: ${missing[*]}"
+            echo "Добавь значения в Settings → Secrets and variables → Actions и перезапусти workflow."
+            exit 1
+          fi
+
       - name: 🔐 Apply/update env Secret
         env:
           BOOTSTRAP: ${{ secrets.VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
@@ -70,4 +126,3 @@ jobs:
         continue-on-error: true
         run: |
           kubectl -n app logs deploy/vk-response-preparer --tail=200
-
