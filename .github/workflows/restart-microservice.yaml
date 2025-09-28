@@ -15,6 +15,9 @@ on:
           - message-responder-ocr
           - telegram-response-preparer
           - telegram-sender
+          - vk-forwarder
+          - vk-response-preparer
+          - vk-sender
           - doc2text
 jobs:
   restart:
