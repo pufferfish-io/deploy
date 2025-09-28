@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vk-sender
+  namespace: app
+  labels:
+    app: vk-sender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vk-sender
+  template:
+    metadata:
+      labels:
+        app: vk-sender
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: vk-sender
+          image: ghcr.io/pufferfish-io/vk-sender:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: vk-sender-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+

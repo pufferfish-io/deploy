@@ -1,0 +1,129 @@
+name: 🚀 Deploy vk-sender
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy via kubectl
+    runs-on: self-hosted
+
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🔍 Проверить GitHub Secrets (env)
+        env:
+          BOOTSTRAP: ${{ secrets.VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ secrets.VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.VKSENDER_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.VKSENDER_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.VKSENDER_KAFKA_CLIENT_ID }}
+          VK_TOKEN: ${{ secrets.VKSENDER_VK_TOKEN }}
+          SERVER_PORT: ${{ secrets.VKSENDER_SERVER_PORT }}
+        run: |
+          set -euo pipefail
+          echo "Требуемые ключи (GitHub Secrets):"
+          echo "- VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE"
+          echo "- VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME"
+          echo "- VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
+          echo "- VKSENDER_KAFKA_SASL_USERNAME"
+          echo "- VKSENDER_KAFKA_SASL_PASSWORD"
+          echo "- VKSENDER_KAFKA_CLIENT_ID"
+          echo "- VKSENDER_VK_TOKEN"
+          echo "Опционально: VKSENDER_SERVER_PORT (по умолчанию 8098)"
+
+          pairs=(
+            "BOOTSTRAP=VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE"
+            "VK_TOPIC=VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME"
+            "GROUP_ID=VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
+            "SASL_USER=VKSENDER_KAFKA_SASL_USERNAME"
+            "SASL_PASS=VKSENDER_KAFKA_SASL_PASSWORD"
+            "CLIENT_ID=VKSENDER_KAFKA_CLIENT_ID"
+            "VK_TOKEN=VKSENDER_VK_TOKEN"
+          )
+
+          missing=()
+          for pair in "${pairs[@]}"; do
+            envvar="${pair%%=*}"
+            secret="${pair#*=}"
+            if [ -z "${!envvar:-}" ]; then
+              echo "✗ ${secret}: ПУСТО"
+              missing+=("${secret}")
+            else
+              echo "✓ ${secret}: OK"
+            fi
+          done
+
+          if [ -z "${SERVER_PORT:-}" ]; then
+            echo "• VKSENDER_SERVER_PORT: не задан (будет использовано 8098)"
+          else
+            echo "• VKSENDER_SERVER_PORT: задан"
+          fi
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Отсутствуют/пустые Secrets: ${missing[*]}"
+            echo "Добавь значения в Settings → Secrets and variables → Actions и перезапусти workflow."
+            exit 1
+          fi
+
+      - name: 🔐 Apply/update env Secret
+        env:
+          BOOTSTRAP: ${{ secrets.VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ secrets.VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME }}
+          GROUP_ID: ${{ secrets.VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
+          SASL_USER: ${{ secrets.VKSENDER_KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.VKSENDER_KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ secrets.VKSENDER_KAFKA_CLIENT_ID }}
+          VK_TOKEN: ${{ secrets.VKSENDER_VK_TOKEN }}
+          SERVER_PORT: ${{ secrets.VKSENDER_SERVER_PORT }}
+        run: |
+          kubectl -n app create secret generic vk-sender-env \
+            --from-literal=VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME="${VK_TOPIC}" \
+            --from-literal=VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
+            --from-literal=VKSENDER_KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=VKSENDER_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=VKSENDER_KAFKA_CLIENT_ID="${CLIENT_ID}" \
+            --from-literal=VKSENDER_SERVER_PORT="${SERVER_PORT:-8098}" \
+            --from-literal=VKSENDER_VK_TOKEN="${VK_TOKEN}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 📤 Apply manifests
+        run: |
+          kubectl -n app apply -f k8s/vk-sender/deploy.yaml
+
+      - name: 🖼 Update image tag
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          REPO=ghcr.io/pufferfish-io/vk-sender
+          IMAGE="${REPO}:${TAG}"
+          echo "Deploying image: ${IMAGE}"
+          kubectl -n app set image deployment/vk-sender vk-sender=${IMAGE}
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status deployment/vk-sender --timeout=120s
+          kubectl -n app get pods -o wide
+
+      - name: 📝 Recent logs (best effort)
+        continue-on-error: true
+        run: |
+          kubectl -n app logs deploy/vk-sender --tail=200
+

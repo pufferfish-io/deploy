@@ -279,6 +279,34 @@ Deploy (GitHub Actions)
   - Applies `k8s/telegram-sender/deploy.yaml`.
   - Sets the container image to `ghcr.io/pufferfish-io/telegram-sender:<image_tag>` and waits for rollout.
 
+## VK Sender
+
+- Manifest: `k8s/vk-sender/deploy.yaml`
+- Image: `ghcr.io/pufferfish-io/vk-sender:<tag>`; tag is provided via the deploy workflow input.
+- Environment: loaded from Secret `vk-sender-env` (created/updated by workflow from GitHub Secrets).
+
+Required GitHub Secrets (names only)
+
+- `VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE`
+- `VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME`
+- `VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID`
+- `VKSENDER_KAFKA_SASL_USERNAME`
+- `VKSENDER_KAFKA_SASL_PASSWORD`
+- `VKSENDER_KAFKA_CLIENT_ID`
+- `VKSENDER_VK_TOKEN`
+- Optional: `VKSENDER_SERVER_PORT` (default `8098` if omitted)
+
+Deploy (GitHub Actions)
+
+- Workflow: `.github/workflows/deploy-vk-sender.yaml`
+- Inputs:
+  - `image_tag` (e.g., `v0.1.0`; defaults to `latest`)
+- What it does:
+  - Ensures namespace `app`.
+  - Creates/updates Secret `vk-sender-env` from GitHub Secrets (above).
+  - Applies `k8s/vk-sender/deploy.yaml`.
+  - Sets the container image to `ghcr.io/pufferfish-io/vk-sender:<image_tag>` and waits for rollout.
+
 ## Doc2Text
 
 - Manifest: `k8s/doc2text/deploy.yaml`
