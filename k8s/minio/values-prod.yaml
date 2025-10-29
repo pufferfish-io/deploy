@@ -18,28 +18,7 @@ resources:
     cpu: 250m
 
 consoleIngress:
-  enabled: true
-  ingressClassName: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-http01
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts:
-    - minio.ui.pufferfish.ru
-  tls:
-    - secretName: minio-ui-tls
-      hosts:
-        - minio.ui.pufferfish.ru
+  enabled: false
 
 ingress:
-  enabled: true
-  ingressClassName: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-http01
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: 500m
-  hosts:
-    - minio.back.pufferfish.ru
-  tls:
-    - secretName: minio-back-tls
-      hosts:
-        - minio.back.pufferfish.ru
+  enabled: false

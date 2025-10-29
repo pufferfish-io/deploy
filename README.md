@@ -310,8 +310,7 @@ Deploy (GitHub Actions)
 ## Doc2Text
 
 - Manifest: `k8s/doc2text/deploy.yaml`
-- Ingress (HTTP): `doc2text.pufferfish.ru` (TLS `doc2text-tls`), пути `/` и `/healthz`.
-- Ingress (gRPC): `grpc.doc2text.pufferfish.ru` (TLS `grpc-doc2text-tls`), backend `doc2text:50052`.
+- Внешний Ingress отключен — сервис доступен только внутри кластера (ClusterIP).
 - Image: `ghcr.io/pufferfish-io/doc2text:<tag>`; tag is provided via the deploy workflow input.
 - Environment: loaded from Secret `doc2text-env` (created/updated by workflow from GitHub Secrets).
 
@@ -354,11 +353,11 @@ Deploy (GitHub Actions)
 gRPC доступ
 
 - Внутри кластера: `doc2text.app.svc.cluster.local:50052`.
-- Снаружи: `grpc.doc2text.pufferfish.ru:443` (HTTP/2 TLS, NGINX Ingress, аннотация `backend-protocol: GRPC`).
-- Пример вызова (если включён OIDC):
+- Пример вызова (из пода в кластере; если без TLS — с флагом `-plaintext`):
   ```bash
-  grpcurl -H "authorization: Bearer $TOKEN" \
-    grpc.doc2text.pufferfish.ru:443 \
+  grpcurl -plaintext \
+    -H "authorization: Bearer $TOKEN" \
+    doc2text.app.svc.cluster.local:50052 \
     ocr.v1.OcrService/Process \
     -d '{"objectkey":"path/in/s3"}'
   ```
@@ -386,10 +385,8 @@ Build & Push (service repository)
 - Required GitHub Secrets:
   - `MINIO_ROOT_USER`
   - `MINIO_ROOT_PASSWORD`
-- Default domains in `k8s/minio/values-prod.yaml`:
-  - Console: `minio.ui.pufferfish.ru` (TLS `minio-ui-tls`).
-  - API: `minio.back.pufferfish.ru` (TLS `minio-back-tls`).
-- Update hosts/secret names directly in `values-prod.yaml` if needed.
+- Внешние Ingress-ы отключены (см. `k8s/minio/values-prod.yaml`: `consoleIngress.enabled=false`, `ingress.enabled=false`). Доступ к консоли и API — только внутри кластера. Посмотреть сервисы: `kubectl -n minio get svc`.
+- Чтобы включить внешний доступ позже — установите значения `consoleIngress.enabled` и/или `ingress.enabled` в `true` и задайте домены/сертификаты.
 
 ## Useful Commands
 
