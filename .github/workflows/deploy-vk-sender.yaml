@@ -82,24 +82,22 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          BOOTSTRAP: ${{ secrets.VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          VK_TOPIC: ${{ secrets.VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME }}
-          GROUP_ID: ${{ secrets.VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
-          SASL_USER: ${{ secrets.VKSENDER_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.VKSENDER_KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ secrets.VKSENDER_KAFKA_CLIENT_ID }}
-          VK_TOKEN: ${{ secrets.VKSENDER_VK_TOKEN }}
-          SERVER_PORT: ${{ secrets.VKSENDER_SERVER_PORT }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_SENDER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ vars.KAFKA_CLIENT_ID }}
+          VK_TOKEN: ${{ secrets.VK_TOKEN }}
         run: |
           kubectl -n app create secret generic vk-sender-env \
-            --from-literal=VKSENDER_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=VKSENDER_KAFKA_VK_MESSAGE_TOPIC_NAME="${VK_TOPIC}" \
-            --from-literal=VKSENDER_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
-            --from-literal=VKSENDER_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=VKSENDER_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=VKSENDER_KAFKA_CLIENT_ID="${CLIENT_ID}" \
-            --from-literal=VKSENDER_SERVER_PORT="${SERVER_PORT:-8098}" \
-            --from-literal=VKSENDER_VK_TOKEN="${VK_TOKEN}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE="${VK_TOPIC}" \
+            --from-literal=KAFKA_GROUP_ID_VK_SENDER="${GROUP_ID}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=KAFKA_CLIENT_ID="${CLIENT_ID}" \
+            --from-literal=VK_TOKEN="${VK_TOKEN}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
@@ -126,4 +124,3 @@ jobs:
         continue-on-error: true
         run: |
           kubectl -n app logs deploy/vk-sender --tail=200
-

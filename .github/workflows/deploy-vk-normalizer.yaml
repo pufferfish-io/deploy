@@ -24,19 +24,19 @@ jobs:
         run: |
           kubectl get ns app || kubectl create ns app
 
-      - name: 🔍 Проверить значения GitHub Secrets
+      - name: 🔍 Проверить значения GitHub Secrets/Variables
         env:
-          BOOTSTRAP: ${{ secrets.VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          GROUP_ID: ${{ secrets.VK_NORM_KAFKA_GROUP_ID }}
-          SASL_USER: ${{ secrets.VK_NORM_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.VK_NORM_KAFKA_SASL_PASSWORD }}
-          TOPIC_VK: ${{ secrets.VK_NORM_KAFKA_VK_MESS_TOPIC_NAME }}
-          TOPIC_NORMALIZED: ${{ secrets.VK_NORM_KAFKA_NORMALIZER_TOPIC_NAME }}
-          S3_ENDPOINT: ${{ secrets.VK_NORM_S3_ENDPOINT }}
-          S3_ACCESS: ${{ secrets.VK_NORM_S3_ACCESS_KEY }}
-          S3_SECRET: ${{ secrets.VK_NORM_S3_SECRET_KEY }}
-          S3_BUCKET: ${{ secrets.VK_NORM_S3_BUCKET }}
-          S3_USE_SSL: ${{ secrets.VK_NORM_S3_USE_SSL }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_NORMALIZER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          TOPIC_VK: ${{ vars.KAFKA_TOPIC_NAME_VK_UPDATES }}
+          TOPIC_NORMALIZED: ${{ vars.KAFKA_TOPIC_NAME_NORMALIZED_MSG }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_USE_SSL: ${{ vars.S3_USE_SSL }}
         run: |
           set -euo pipefail
           missing=()
@@ -54,30 +54,30 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          BOOTSTRAP: ${{ secrets.VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          GROUP_ID: ${{ secrets.VK_NORM_KAFKA_GROUP_ID }}
-          SASL_USER: ${{ secrets.VK_NORM_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.VK_NORM_KAFKA_SASL_PASSWORD }}
-          TOPIC_VK: ${{ secrets.VK_NORM_KAFKA_VK_MESS_TOPIC_NAME }}
-          TOPIC_NORMALIZED: ${{ secrets.VK_NORM_KAFKA_NORMALIZER_TOPIC_NAME }}
-          S3_ENDPOINT: ${{ secrets.VK_NORM_S3_ENDPOINT }}
-          S3_ACCESS: ${{ secrets.VK_NORM_S3_ACCESS_KEY }}
-          S3_SECRET: ${{ secrets.VK_NORM_S3_SECRET_KEY }}
-          S3_BUCKET: ${{ secrets.VK_NORM_S3_BUCKET }}
-          S3_USE_SSL: ${{ secrets.VK_NORM_S3_USE_SSL }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_NORMALIZER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          TOPIC_VK: ${{ vars.KAFKA_TOPIC_NAME_VK_UPDATES }}
+          TOPIC_NORMALIZED: ${{ vars.KAFKA_TOPIC_NAME_NORMALIZED_MSG }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_USE_SSL: ${{ vars.S3_USE_SSL }}
         run: |
           kubectl -n app create secret generic vk-normalizer-env \
-            --from-literal=VK_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=VK_NORM_KAFKA_GROUP_ID="${GROUP_ID}" \
-            --from-literal=VK_NORM_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=VK_NORM_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=VK_NORM_KAFKA_VK_MESS_TOPIC_NAME="${TOPIC_VK}" \
-            --from-literal=VK_NORM_KAFKA_NORMALIZER_TOPIC_NAME="${TOPIC_NORMALIZED}" \
-            --from-literal=VK_NORM_S3_ENDPOINT="${S3_ENDPOINT}" \
-            --from-literal=VK_NORM_S3_ACCESS_KEY="${S3_ACCESS}" \
-            --from-literal=VK_NORM_S3_SECRET_KEY="${S3_SECRET}" \
-            --from-literal=VK_NORM_S3_BUCKET="${S3_BUCKET}" \
-            --from-literal=VK_NORM_S3_USE_SSL="${S3_USE_SSL}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_GROUP_ID_VK_NORMALIZER="${GROUP_ID}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=KAFKA_TOPIC_NAME_VK_UPDATES="${TOPIC_VK}" \
+            --from-literal=KAFKA_TOPIC_NAME_NORMALIZED_MSG="${TOPIC_NORMALIZED}" \
+            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}" \
+            --from-literal=S3_ACCESS_KEY="${S3_ACCESS}" \
+            --from-literal=S3_SECRET_KEY="${S3_SECRET}" \
+            --from-literal=S3_BUCKET="${S3_BUCKET}" \
+            --from-literal=S3_USE_SSL="${S3_USE_SSL}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

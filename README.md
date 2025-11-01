@@ -2,6 +2,72 @@
 
 Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegram Forwarder).
 
+## New Environment Keys (consolidated)
+
+All unique environment key names used across services, with classification (variable | secret).
+
+- API_PATH_TG_FORWARDER_HEALTH_CHECK — variable
+- API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK — variable
+- API_PATH_VK_FORWARDER_HEALTH_CHECK — variable
+- API_PATH_VK_FORWARDER_VK_WEB_HOOK — variable
+- DOC3TEXT_ACCESS_TOKEN_URL — variable
+- DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
+- DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR — secret
+- DOC3TEXT_G_RPC_URL — variable
+- G_RPC_SERVER_DOC2TEXT_ADDR — variable
+- HTTP_SERVER_DOC2TEXT_ADDR — variable
+- KAFKA_BOOTSTRAP_SERVERS_VALUE — variable
+- KAFKA_CLIENT_ID — variable
+- KAFKA_CLIENT_ID_MESSAGE_RESPONDER — variable
+- KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
+- KAFKA_CLIENT_ID_TELEGRAM_SENDER — variable
+- KAFKA_CLIENT_ID_TG_RESPONSE_PREPARER — variable
+- KAFKA_CLIENT_ID_VK_NORMALIZER — variable
+- KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER — variable
+- KAFKA_GROUP_ID_MESSAGE_RESPONDER — variable
+- KAFKA_GROUP_ID_MESSAGE_RESPONDER_OCR — variable
+- KAFKA_GROUP_ID_TELEGRAM_NORMALIZER — variable
+- KAFKA_GROUP_ID_TELEGRAM_SENDER — variable
+- KAFKA_GROUP_ID_TG_RESPONSE_PREPARER — variable
+- KAFKA_GROUP_ID_VK_NORMALIZER — variable
+- KAFKA_GROUP_ID_VK_RESPONSE_PREPARER — variable
+- KAFKA_GROUP_ID_VK_SENDER — variable
+- KAFKA_SASL_PASSWORD — secret
+- KAFKA_SASL_USERNAME — secret
+- KAFKA_TOPIC_NAME_NORMALIZED_MSG — variable
+- KAFKA_TOPIC_NAME_OCR_REQUEST — variable
+- KAFKA_TOPIC_NAME_TELEGRAM_NORMALIZED — variable
+- KAFKA_TOPIC_NAME_TELEGRAM_UPDATES — variable
+- KAFKA_TOPIC_NAME_TG_REQUEST_MESSAGE — variable
+- KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER — variable
+- KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE — variable
+- KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER — variable
+- KAFKA_TOPIC_NAME_VK_UPDATES — variable
+- OIDC_DOC2TEXT_AUDIENCE — variable
+- OIDC_DOC2TEXT_EXPECTED_AZP — variable
+- OIDC_DOC2TEXT_ISSUER — variable
+- OIDC_DOC2TEXT_JWKS_URL — variable
+- S3_ACCESS_KEY — secret
+- S3_BUCKET — variable
+- S3_ENDPOINT — variable
+- S3_SECRET_KEY — secret
+- S3_USE_SSL — variable
+- SERVER_ADDR_TELEGRAM_FORWARDER — variable
+- SERVER_ADDR_VK_FORWARDER — variable
+- TELEGRAMTOKEN — secret
+- TELEGRAM_TOKEN — secret
+- VK_CONFIRMATION — secret
+- VK_SECRET — secret
+- VK_TOKEN — secret
+- YC_API_KEY — secret
+- YC_DEFAULT_MODEL — variable
+- YC_ENDPOINT — variable
+- YC_FOLDER_ID — variable
+- YC_HTTP_TIMEOUT — variable
+- YC_IAM_TOKEN — secret
+- YC_LANGUAGES — variable
+- YC_MIN_CONFIDENCE — variable
+
 ## Prerequisites
 
 - Kubernetes cluster (k3s/EKS/…) and `kubectl` available on the CI runner.

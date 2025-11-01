@@ -26,58 +26,52 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          DOC2TEXT_ADDR: ${{ secrets.DOC2TEXT_ADDR }}
-          DOC2TEXT_PROVIDER: ${{ secrets.DOC2TEXT_PROVIDER }}
-          DOC2TEXT_MAX_FILE_MB: ${{ secrets.DOC2TEXT_MAX_FILE_MB }}
-          DOC2TEXT_MAX_FILES: ${{ secrets.DOC2TEXT_MAX_FILES }}
+          G_RPC_ADDR: ${{ vars.G_RPC_SERVER_DOC2TEXT_ADDR }}
+          HTTP_ADDR: ${{ vars.HTTP_SERVER_DOC2TEXT_ADDR }}
 
-          DOC2TEXT_YC_API_KEY: ${{ secrets.DOC2TEXT_YC_API_KEY }}
-          DOC2TEXT_YC_FOLDER_ID: ${{ secrets.DOC2TEXT_YC_FOLDER_ID }}
-          DOC2TEXT_YC_ENDPOINT: ${{ secrets.DOC2TEXT_YC_ENDPOINT }}
-          DOC2TEXT_YC_DEFAULT_MODEL: ${{ secrets.DOC2TEXT_YC_DEFAULT_MODEL }}
-          DOC2TEXT_YC_MIN_CONFIDENCE: ${{ secrets.DOC2TEXT_YC_MIN_CONFIDENCE }}
-          DOC2TEXT_YC_HTTP_TIMEOUT: ${{ secrets.DOC2TEXT_YC_HTTP_TIMEOUT }}
-          DOC2TEXT_YC_LANGUAGES: ${{ secrets.DOC2TEXT_YC_LANGUAGES }}
+          YC_API_KEY: ${{ secrets.YC_API_KEY }}
+          YC_IAM_TOKEN: ${{ secrets.YC_IAM_TOKEN }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_ENDPOINT: ${{ vars.YC_ENDPOINT }}
+          YC_DEFAULT_MODEL: ${{ vars.YC_DEFAULT_MODEL }}
+          YC_MIN_CONFIDENCE: ${{ vars.YC_MIN_CONFIDENCE }}
+          YC_HTTP_TIMEOUT: ${{ vars.YC_HTTP_TIMEOUT }}
+          YC_LANGUAGES: ${{ vars.YC_LANGUAGES }}
 
-          DOC2TEXT_S3_ENDPOINT: ${{ secrets.DOC2TEXT_S3_ENDPOINT }}
-          DOC2TEXT_S3_ACCESS_KEY: ${{ secrets.DOC2TEXT_S3_ACCESS_KEY }}
-          DOC2TEXT_S3_SECRET_KEY: ${{ secrets.DOC2TEXT_S3_SECRET_KEY }}
-          DOC2TEXT_S3_BUCKET: ${{ secrets.DOC2TEXT_S3_BUCKET }}
-          DOC2TEXT_S3_USE_SSL: ${{ secrets.DOC2TEXT_S3_USE_SSL }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_USE_SSL: ${{ vars.S3_USE_SSL }}
 
-          DOC2TEXT_HTTP_ADDR: ${{ secrets.DOC2TEXT_HTTP_ADDR }}
-          DOC2TEXT_HTTP_HEALTH_CHECK_PATH: ${{ secrets.DOC2TEXT_HTTP_HEALTH_CHECK_PATH }}
-          DOC2TEXT_OIDC_ISSUER: ${{ secrets.DOC2TEXT_OIDC_ISSUER }}
-          DOC2TEXT_OIDC_JWKS_URL: ${{ secrets.DOC2TEXT_OIDC_JWKS_URL }}
-          DOC2TEXT_OIDC_AUDIENCE: ${{ secrets.DOC2TEXT_OIDC_AUDIENCE }}
-          DOC2TEXT_OIDC_EXPECTED_AZP: ${{ secrets.DOC2TEXT_OIDC_EXPECTED_AZP }}
+          OIDC_ISSUER: ${{ vars.OIDC_DOC2TEXT_ISSUER }}
+          OIDC_JWKS_URL: ${{ vars.OIDC_DOC2TEXT_JWKS_URL }}
+          OIDC_AUDIENCE: ${{ vars.OIDC_DOC2TEXT_AUDIENCE }}
+          OIDC_EXPECTED_AZP: ${{ vars.OIDC_DOC2TEXT_EXPECTED_AZP }}
         run: |
           kubectl -n app create secret generic doc2text-env \
-            --from-literal=DOC2TEXT_ADDR="${DOC2TEXT_ADDR:-:50052}" \
-            --from-literal=DOC2TEXT_PROVIDER="${DOC2TEXT_PROVIDER:-mock}" \
-            --from-literal=DOC2TEXT_MAX_FILE_MB="${DOC2TEXT_MAX_FILE_MB:-25}" \
-            --from-literal=DOC2TEXT_MAX_FILES="${DOC2TEXT_MAX_FILES:-50}" \
+            --from-literal=G_RPC_SERVER_DOC2TEXT_ADDR="${G_RPC_ADDR:-:50052}" \
+            --from-literal=HTTP_SERVER_DOC2TEXT_ADDR="${HTTP_ADDR:-:8086}" \
             \
-            --from-literal=DOC2TEXT_YC_API_KEY="${DOC2TEXT_YC_API_KEY}" \
-            --from-literal=DOC2TEXT_YC_FOLDER_ID="${DOC2TEXT_YC_FOLDER_ID}" \
-            --from-literal=DOC2TEXT_YC_ENDPOINT="${DOC2TEXT_YC_ENDPOINT:-https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText}" \
-            --from-literal=DOC2TEXT_YC_DEFAULT_MODEL="${DOC2TEXT_YC_DEFAULT_MODEL:-page}" \
-            --from-literal=DOC2TEXT_YC_MIN_CONFIDENCE="${DOC2TEXT_YC_MIN_CONFIDENCE:-0.7}" \
-            --from-literal=DOC2TEXT_YC_HTTP_TIMEOUT="${DOC2TEXT_YC_HTTP_TIMEOUT:-20s}" \
-            --from-literal=DOC2TEXT_YC_LANGUAGES="${DOC2TEXT_YC_LANGUAGES:-*}" \
+            --from-literal=YC_API_KEY="${YC_API_KEY}" \
+            --from-literal=YC_IAM_TOKEN="${YC_IAM_TOKEN}" \
+            --from-literal=YC_FOLDER_ID="${YC_FOLDER_ID}" \
+            --from-literal=YC_ENDPOINT="${YC_ENDPOINT:-https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze}" \
+            --from-literal=YC_DEFAULT_MODEL="${YC_DEFAULT_MODEL:-page}" \
+            --from-literal=YC_MIN_CONFIDENCE="${YC_MIN_CONFIDENCE:-0.6}" \
+            --from-literal=YC_HTTP_TIMEOUT="${YC_HTTP_TIMEOUT:-15s}" \
+            --from-literal=YC_LANGUAGES="${YC_LANGUAGES:-ru,en}" \
             \
-            --from-literal=DOC2TEXT_S3_ENDPOINT="${DOC2TEXT_S3_ENDPOINT}" \
-            --from-literal=DOC2TEXT_S3_ACCESS_KEY="${DOC2TEXT_S3_ACCESS_KEY}" \
-            --from-literal=DOC2TEXT_S3_SECRET_KEY="${DOC2TEXT_S3_SECRET_KEY}" \
-            --from-literal=DOC2TEXT_S3_BUCKET="${DOC2TEXT_S3_BUCKET}" \
-            --from-literal=DOC2TEXT_S3_USE_SSL="${DOC2TEXT_S3_USE_SSL:-true}" \
+            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}" \
+            --from-literal=S3_ACCESS_KEY="${S3_ACCESS_KEY}" \
+            --from-literal=S3_SECRET_KEY="${S3_SECRET_KEY}" \
+            --from-literal=S3_BUCKET="${S3_BUCKET}" \
+            --from-literal=S3_USE_SSL="${S3_USE_SSL:-false}" \
             \
-            --from-literal=DOC2TEXT_HTTP_ADDR="${DOC2TEXT_HTTP_ADDR:-:8086}" \
-            --from-literal=DOC2TEXT_HTTP_HEALTH_CHECK_PATH="${DOC2TEXT_HTTP_HEALTH_CHECK_PATH:-/healthz}" \
-            --from-literal=DOC2TEXT_OIDC_ISSUER="${DOC2TEXT_OIDC_ISSUER:-https://auth.pufferfish.ru/realms/pufferfish}" \
-            --from-literal=DOC2TEXT_OIDC_JWKS_URL="${DOC2TEXT_OIDC_JWKS_URL:-https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/certs}" \
-            --from-literal=DOC2TEXT_OIDC_AUDIENCE="${DOC2TEXT_OIDC_AUDIENCE:-doc2text}" \
-            --from-literal=DOC2TEXT_OIDC_EXPECTED_AZP="${DOC2TEXT_OIDC_EXPECTED_AZP:-message-responder-ocr}" \
+            --from-literal=OIDC_DOC2TEXT_ISSUER="${OIDC_ISSUER}" \
+            --from-literal=OIDC_DOC2TEXT_JWKS_URL="${OIDC_JWKS_URL}" \
+            --from-literal=OIDC_DOC2TEXT_AUDIENCE="${OIDC_AUDIENCE}" \
+            --from-literal=OIDC_DOC2TEXT_EXPECTED_AZP="${OIDC_EXPECTED_AZP}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

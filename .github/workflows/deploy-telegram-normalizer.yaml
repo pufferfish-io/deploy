@@ -26,32 +26,32 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          TG_TOKEN: ${{ secrets.TG_NORM_TELEGRAM_TOKEN }}
-          BOOTSTRAP: ${{ secrets.TG_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          GROUP_ID: ${{ secrets.TG_NORM_KAFKA_GROUP_ID }}
-          SASL_USER: ${{ secrets.TG_NORM_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.TG_NORM_KAFKA_SASL_PASSWORD }}
-          TOPIC_UPDATES: ${{ secrets.TG_NORM_KAFKA_TG_MESS_TOPIC_NAME }}
-          TOPIC_NORMALIZED: ${{ secrets.TG_NORM_KAFKA_NORMALIZER_TOPIC_NAME }}
-          S3_ENDPOINT: ${{ secrets.TG_NORM_S3_ENDPOINT }}
-          S3_ACCESS: ${{ secrets.TG_NORM_S3_ACCESS_KEY }}
-          S3_SECRET: ${{ secrets.TG_NORM_S3_SECRET_KEY }}
-          S3_BUCKET: ${{ secrets.TG_NORM_S3_BUCKET }}
-          S3_USE_SSL: ${{ secrets.TG_NORM_S3_USE_SSL }}
+          TG_TOKEN: ${{ secrets.TELEGRAMTOKEN }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_TELEGRAM_NORMALIZER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          TOPIC_UPDATES: ${{ vars.KAFKA_TOPIC_NAME_TELEGRAM_UPDATES }}
+          TOPIC_NORMALIZED: ${{ vars.KAFKA_TOPIC_NAME_NORMALIZED_MSG }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
+          S3_USE_SSL: ${{ vars.S3_USE_SSL }}
         run: |
           kubectl -n app create secret generic telegram-normalizer-env \
-            --from-literal=TG_NORM_TELEGRAM_TOKEN="${TG_TOKEN}" \
-            --from-literal=TG_NORM_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=TG_NORM_KAFKA_GROUP_ID="${GROUP_ID}" \
-            --from-literal=TG_NORM_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=TG_NORM_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=TG_NORM_KAFKA_TG_MESS_TOPIC_NAME="${TOPIC_UPDATES}" \
-            --from-literal=TG_NORM_KAFKA_NORMALIZER_TOPIC_NAME="${TOPIC_NORMALIZED}" \
-            --from-literal=TG_NORM_S3_ENDPOINT="${S3_ENDPOINT}" \
-            --from-literal=TG_NORM_S3_ACCESS_KEY="${S3_ACCESS}" \
-            --from-literal=TG_NORM_S3_SECRET_KEY="${S3_SECRET}" \
-            --from-literal=TG_NORM_S3_BUCKET="${S3_BUCKET}" \
-            --from-literal=TG_NORM_S3_USE_SSL="${S3_USE_SSL}" \
+            --from-literal=TELEGRAMTOKEN="${TG_TOKEN}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_GROUP_ID_TELEGRAM_NORMALIZER="${GROUP_ID}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=KAFKA_TOPIC_NAME_TELEGRAM_UPDATES="${TOPIC_UPDATES}" \
+            --from-literal=KAFKA_TOPIC_NAME_NORMALIZED_MSG="${TOPIC_NORMALIZED}" \
+            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}" \
+            --from-literal=S3_ACCESS_KEY="${S3_ACCESS}" \
+            --from-literal=S3_SECRET_KEY="${S3_SECRET}" \
+            --from-literal=S3_BUCKET="${S3_BUCKET}" \
+            --from-literal=S3_USE_SSL="${S3_USE_SSL}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

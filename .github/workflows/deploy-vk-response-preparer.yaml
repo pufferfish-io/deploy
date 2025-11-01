@@ -24,36 +24,32 @@ jobs:
         run: |
           kubectl get ns app || kubectl create ns app
 
-      - name: 🔍 Проверить GitHub Secrets (env)
+      - name: 🔍 Проверить GitHub Secrets/Variables (env)
         env:
-          BOOTSTRAP: ${{ secrets.VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          VK_TOPIC: ${{ secrets.VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME }}
-          RESP_TOPIC: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME }}
-          GROUP_ID: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
-          SASL_USER: ${{ secrets.VKRP_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.VKRP_KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ secrets.VKRP_KAFKA_CLIENT_ID }}
-          SERVER_PORT: ${{ secrets.VKRP_SERVER_PORT }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE }}
+          RESP_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_RESPONSE_PREPARER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ vars.KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER }}
         run: |
           set -euo pipefail
-          echo "Требуемые ключи (GitHub Secrets):"
-          echo "- VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE"
-          echo "- VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME"
-          echo "- VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME"
-          echo "- VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
-          echo "- VKRP_KAFKA_SASL_USERNAME"
-          echo "- VKRP_KAFKA_SASL_PASSWORD"
-          echo "- VKRP_KAFKA_CLIENT_ID"
-          echo "Опционально: VKRP_SERVER_PORT (по умолчанию 8083)"
+          echo "Требуемые GitHub Variables:"
+          echo "- KAFKA_BOOTSTRAP_SERVERS_VALUE"
+          echo "- KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE"
+          echo "- KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER"
+          echo "- KAFKA_GROUP_ID_VK_RESPONSE_PREPARER"
+          echo "- KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER (опционально)"
+          echo "Требуемые GitHub Secrets:"
+          echo "- KAFKA_SASL_USERNAME"
+          echo "- KAFKA_SASL_PASSWORD"
 
           pairs=(
-            "BOOTSTRAP=VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE"
-            "VK_TOPIC=VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME"
-            "RESP_TOPIC=VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME"
-            "GROUP_ID=VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID"
-            "SASL_USER=VKRP_KAFKA_SASL_USERNAME"
-            "SASL_PASS=VKRP_KAFKA_SASL_PASSWORD"
-            "CLIENT_ID=VKRP_KAFKA_CLIENT_ID"
+            "BOOTSTRAP=KAFKA_BOOTSTRAP_SERVERS_VALUE"
+            "VK_TOPIC=KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE"
+            "RESP_TOPIC=KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER"
+            "GROUP_ID=KAFKA_GROUP_ID_VK_RESPONSE_PREPARER"
           )
 
           missing=()
@@ -82,24 +78,22 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          BOOTSTRAP: ${{ secrets.VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          VK_TOPIC: ${{ secrets.VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME }}
-          RESP_TOPIC: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME }}
-          GROUP_ID: ${{ secrets.VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID }}
-          SASL_USER: ${{ secrets.VKRP_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.VKRP_KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ secrets.VKRP_KAFKA_CLIENT_ID }}
-          SERVER_PORT: ${{ secrets.VKRP_SERVER_PORT }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          VK_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE }}
+          RESP_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_RESPONSE_PREPARER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ vars.KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER }}
         run: |
           kubectl -n app create secret generic vk-response-preparer-env \
-            --from-literal=VKRP_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=VKRP_KAFKA_VK_MESSAGE_TOPIC_NAME="${VK_TOPIC}" \
-            --from-literal=VKRP_KAFKA_RESPONSE_MESSAGE_TOPIC_NAME="${RESP_TOPIC}" \
-            --from-literal=VKRP_KAFKA_RESPONSE_MESSAGE_GROUP_ID="${GROUP_ID}" \
-            --from-literal=VKRP_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=VKRP_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=VKRP_KAFKA_CLIENT_ID="${CLIENT_ID}" \
-            --from-literal=VKRP_SERVER_PORT="${SERVER_PORT:-8083}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE="${VK_TOPIC}" \
+            --from-literal=KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER="${RESP_TOPIC}" \
+            --from-literal=KAFKA_GROUP_ID_VK_RESPONSE_PREPARER="${GROUP_ID}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER="${CLIENT_ID}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

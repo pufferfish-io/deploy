@@ -26,30 +26,30 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          BOOTSTRAP: ${{ secrets.MSG_RESP_OCR_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          GROUP_ID: ${{ secrets.MSG_RESP_OCR_KAFKA_GROUP_ID }}
-          REQ_TOPIC: ${{ secrets.MSG_RESP_OCR_KAFKA_REQUEST_TOPIC_NAME }}
-          RESP_TOPIC: ${{ secrets.MSG_RESP_OCR_KAFKA_RESPONSE_TOPIC_NAME }}
-          SASL_USER: ${{ secrets.MSG_RESP_OCR_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.MSG_RESP_OCR_KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ secrets.MSG_RESP_OCR_KAFKA_CLIENT_ID }}
-          DOC3TEXT_TOKEN_URL: ${{ secrets.MSG_RESP_OCR_DOC3TEXT_ACCESS_TOKEN_URL }}
-          DOC3TEXT_CLIENT_ID: ${{ secrets.MSG_RESP_OCR_DOC3TEXT_CLIENT_ID }}
-          DOC3TEXT_CLIENT_SECRET: ${{ secrets.MSG_RESP_OCR_DOC3TEXT_CLIENT_SECRET }}
-          DOC3TEXT_G_RPC_URL: ${{ secrets.MSG_RESP_OCR_DOC3TEXT_G_RPC_URL }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_MESSAGE_RESPONDER_OCR }}
+          REQ_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_OCR_REQUEST }}
+          RESP_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          CLIENT_ID: ${{ vars.KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR }}
+          DOC3TEXT_TOKEN_URL: ${{ vars.DOC3TEXT_ACCESS_TOKEN_URL }}
+          DOC3TEXT_CLIENT_ID: ${{ vars.DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR }}
+          DOC3TEXT_CLIENT_SECRET: ${{ secrets.DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR }}
+          DOC3TEXT_G_RPC_URL: ${{ vars.DOC3TEXT_G_RPC_URL }}
         run: |
           kubectl -n app create secret generic message-responder-ocr-env \
-            --from-literal=MSG_RESP_OCR_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_GROUP_ID="${GROUP_ID}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_REQUEST_TOPIC_NAME="${REQ_TOPIC}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_RESPONSE_TOPIC_NAME="${RESP_TOPIC}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=MSG_RESP_OCR_KAFKA_CLIENT_ID="${CLIENT_ID}" \
-            --from-literal=MSG_RESP_OCR_DOC3TEXT_ACCESS_TOKEN_URL="${DOC3TEXT_TOKEN_URL}" \
-            --from-literal=MSG_RESP_OCR_DOC3TEXT_CLIENT_ID="${DOC3TEXT_CLIENT_ID}" \
-            --from-literal=MSG_RESP_OCR_DOC3TEXT_CLIENT_SECRET="${DOC3TEXT_CLIENT_SECRET}" \
-            --from-literal=MSG_RESP_OCR_DOC3TEXT_G_RPC_URL="${DOC3TEXT_G_RPC_URL}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_GROUP_ID_MESSAGE_RESPONDER_OCR="${GROUP_ID}" \
+            --from-literal=KAFKA_TOPIC_NAME_OCR_REQUEST="${REQ_TOPIC}" \
+            --from-literal=KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER="${RESP_TOPIC}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR="${CLIENT_ID}" \
+            --from-literal=DOC3TEXT_ACCESS_TOKEN_URL="${DOC3TEXT_TOKEN_URL}" \
+            --from-literal=DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR="${DOC3TEXT_CLIENT_ID}" \
+            --from-literal=DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR="${DOC3TEXT_CLIENT_SECRET}" \
+            --from-literal=DOC3TEXT_G_RPC_URL="${DOC3TEXT_G_RPC_URL}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

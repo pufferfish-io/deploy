@@ -26,24 +26,24 @@ jobs:
 
       - name: 🔐 Apply/update env Secret
         env:
-          ADDR: ":8080"
-          BOOTSTRAP: ${{ secrets.TG_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          TOPIC: ${{ secrets.TG_FORWARDER_KAFKA_TG_MESS_TOPIC_NAME }}
-          SASL_USER: ${{ secrets.TG_FORWARDER_KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.TG_FORWARDER_KAFKA_SASL_PASSWORD }}
-          TG_TOKEN: ${{ secrets.TG_FORWARDER_TELEGRAM_TOKEN }}
-          WEBHOOK_PATH: ${{ secrets.TG_FORWARDER_API_TG_WEB_HOOK_PATH }}
-          HEALTH_PATH: ${{ secrets.TG_FORWARDER_API_HEALTH_CHECK_PATH }}
+          SERVER_ADDR: ${{ vars.SERVER_ADDR_TELEGRAM_FORWARDER }}
+          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+          TOPIC_UPDATES: ${{ vars.KAFKA_TOPIC_NAME_TELEGRAM_UPDATES }}
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          WEBHOOK_PATH: ${{ vars.API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK }}
+          HEALTH_PATH: ${{ vars.API_PATH_TG_FORWARDER_HEALTH_CHECK }}
         run: |
           kubectl -n app create secret generic telegram-forwarder-env \
-            --from-literal=TG_FORWARDER_SERVER_ADDR="${ADDR:-:8080}" \
-            --from-literal=TG_FORWARDER_KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
-            --from-literal=TG_FORWARDER_KAFKA_TG_MESS_TOPIC_NAME="${TOPIC}" \
-            --from-literal=TG_FORWARDER_KAFKA_SASL_USERNAME="${SASL_USER}" \
-            --from-literal=TG_FORWARDER_KAFKA_SASL_PASSWORD="${SASL_PASS}" \
-            --from-literal=TG_FORWARDER_TELEGRAM_TOKEN="${TG_TOKEN}" \
-            --from-literal=TG_FORWARDER_API_TG_WEB_HOOK_PATH="${WEBHOOK_PATH:-/telegram/webhook}" \
-            --from-literal=TG_FORWARDER_API_HEALTH_CHECK_PATH="${HEALTH_PATH:-/healthz}" \
+            --from-literal=SERVER_ADDR_TELEGRAM_FORWARDER="${SERVER_ADDR:-:8080}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_TOPIC_NAME_TELEGRAM_UPDATES="${TOPIC_UPDATES}" \
+            --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
+            --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
+            --from-literal=TELEGRAM_TOKEN="${TG_TOKEN}" \
+            --from-literal=API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK="${WEBHOOK_PATH:-/telegram/webhook}" \
+            --from-literal=API_PATH_TG_FORWARDER_HEALTH_CHECK="${HEALTH_PATH:-/healthz}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
