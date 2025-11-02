@@ -7,10 +7,15 @@ jobs:
   apply-ingress:
     name: "🔄 Apply Ingress for Keycloak"
     runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
     steps:
       - name: "🧾 Checkout repository"
         uses: actions/checkout@v4
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns auth || kubectl create ns auth
 
       - name: "📤 Deploy Ingress: auth.pufferfish.ru"
         run: |

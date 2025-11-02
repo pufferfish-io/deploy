@@ -9,9 +9,14 @@ jobs:
   apply-ingress:
     name: 🔄 Apply Ingress for demo
     runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns demo || kubectl create ns demo
       - name: "📤 Deploy Ingress: demo.pufferfish.ru"
         run: |
           echo "⏳ Applying Ingress..."

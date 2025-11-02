@@ -32,8 +32,6 @@ jobs:
           SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
           SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
           TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          WEBHOOK_PATH: ${{ vars.API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK }}
-          HEALTH_PATH: ${{ vars.API_PATH_TG_FORWARDER_HEALTH_CHECK }}
         run: |
           kubectl -n app create secret generic telegram-forwarder-env \
             --from-literal=SERVER_ADDR_TELEGRAM_FORWARDER="${SERVER_ADDR:-:8080}" \
@@ -42,8 +40,6 @@ jobs:
             --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
             --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
             --from-literal=TELEGRAM_TOKEN="${TG_TOKEN}" \
-            --from-literal=API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK="${WEBHOOK_PATH:-/telegram/webhook}" \
-            --from-literal=API_PATH_TG_FORWARDER_HEALTH_CHECK="${HEALTH_PATH:-/healthz}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

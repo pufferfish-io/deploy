@@ -33,8 +33,6 @@ jobs:
           SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
           CONFIRMATION: ${{ secrets.VK_CONFIRMATION }}
           SECRET: ${{ secrets.VK_SECRET }}
-          WEBHOOK_PATH: ${{ vars.API_PATH_VK_FORWARDER_VK_WEB_HOOK }}
-          HEALTH_PATH: ${{ vars.API_PATH_VK_FORWARDER_HEALTH_CHECK }}
         run: |
           kubectl -n app create secret generic vk-forwarder-env \
             --from-literal=SERVER_ADDR_VK_FORWARDER="${SERVER_ADDR:-:8080}" \
@@ -44,8 +42,6 @@ jobs:
             --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
             --from-literal=VK_CONFIRMATION="${CONFIRMATION}" \
             --from-literal=VK_SECRET="${SECRET}" \
-            --from-literal=API_PATH_VK_FORWARDER_VK_WEB_HOOK="${WEBHOOK_PATH:-/webhook}" \
-            --from-literal=API_PATH_VK_FORWARDER_HEALTH_CHECK="${HEALTH_PATH:-/healthz}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests

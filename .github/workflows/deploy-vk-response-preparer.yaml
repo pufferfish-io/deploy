@@ -24,58 +24,6 @@ jobs:
         run: |
           kubectl get ns app || kubectl create ns app
 
-      - name: 🔍 Проверить GitHub Secrets/Variables (env)
-        env:
-          BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
-          VK_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE }}
-          RESP_TOPIC: ${{ vars.KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER }}
-          GROUP_ID: ${{ vars.KAFKA_GROUP_ID_VK_RESPONSE_PREPARER }}
-          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
-          CLIENT_ID: ${{ vars.KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER }}
-        run: |
-          set -euo pipefail
-          echo "Требуемые GitHub Variables:"
-          echo "- KAFKA_BOOTSTRAP_SERVERS_VALUE"
-          echo "- KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE"
-          echo "- KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER"
-          echo "- KAFKA_GROUP_ID_VK_RESPONSE_PREPARER"
-          echo "- KAFKA_CLIENT_ID_VK_RESPONSE_PREPARER (опционально)"
-          echo "Требуемые GitHub Secrets:"
-          echo "- KAFKA_SASL_USERNAME"
-          echo "- KAFKA_SASL_PASSWORD"
-
-          pairs=(
-            "BOOTSTRAP=KAFKA_BOOTSTRAP_SERVERS_VALUE"
-            "VK_TOPIC=KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE"
-            "RESP_TOPIC=KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER"
-            "GROUP_ID=KAFKA_GROUP_ID_VK_RESPONSE_PREPARER"
-          )
-
-          missing=()
-          for pair in "${pairs[@]}"; do
-            envvar="${pair%%=*}"
-            secret="${pair#*=}"
-            if [ -z "${!envvar:-}" ]; then
-              echo "✗ ${secret}: ПУСТО"
-              missing+=("${secret}")
-            else
-              echo "✓ ${secret}: OK"
-            fi
-          done
-
-          if [ -z "${SERVER_PORT:-}" ]; then
-            echo "• VKRP_SERVER_PORT: не задан (будет использовано 8083)"
-          else
-            echo "• VKRP_SERVER_PORT: задан"
-          fi
-
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Отсутствуют/пустые Secrets: ${missing[*]}"
-            echo "Добавь значения в Settings → Secrets and variables → Actions и перезапусти workflow."
-            exit 1
-          fi
-
       - name: 🔐 Apply/update env Secret
         env:
           BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}

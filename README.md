@@ -6,18 +6,14 @@ Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegr
 
 All unique environment key names used across services, with classification (variable | secret).
 
-- API_PATH_TG_FORWARDER_HEALTH_CHECK — variable
-- API_PATH_TG_FORWARDER_TELEGRAM_WEB_HOOK — variable
-- API_PATH_VK_FORWARDER_HEALTH_CHECK — variable
-- API_PATH_VK_FORWARDER_VK_WEB_HOOK — variable
-- DOC3TEXT_ACCESS_TOKEN_URL — variable
-- DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
-- DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR — secret
-- DOC3TEXT_G_RPC_URL — variable
-- G_RPC_SERVER_DOC2TEXT_ADDR — variable
-- HTTP_SERVER_DOC2TEXT_ADDR — variable
-- KAFKA_BOOTSTRAP_SERVERS_VALUE — variable
-- KAFKA_CLIENT_ID — variable
+- ! DOC3TEXT_ACCESS_TOKEN_URL — variable
+- ! DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
+- ! DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR — secret
+- ! DOC3TEXT_G_RPC_URL — variable
+- ! G_RPC_SERVER_DOC2TEXT_ADDR — variable
+- ! HTTP_SERVER_DOC2TEXT_ADDR — variable
+- ! KAFKA_BOOTSTRAP_SERVERS_VALUE — variable
+- KAFKA_CLIENT_ID_VK_SENDER — variable
 - KAFKA_CLIENT_ID_MESSAGE_RESPONDER — variable
 - KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
 - KAFKA_CLIENT_ID_TELEGRAM_SENDER — variable
