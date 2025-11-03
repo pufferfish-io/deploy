@@ -2,11 +2,6 @@ name: 🚀 Deploy Kafka (KRaft, single node)
 
 on:
   workflow_dispatch:
-    inputs:
-      image_tag:
-        description: "Kafka image tag (pinned; default 3.8.0-debian-12)"
-        required: false
-        default: "3.8.0-debian-12"
 
 jobs:
   deploy:
@@ -27,11 +22,8 @@ jobs:
           kubectl get ns app || kubectl create ns app
 
       - name: 📦 Apply Kafka manifest (StatefulSet + Service)
-        env:
-          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
           set -euo pipefail
-          TAG=${IMAGE_TAG:-latest}
 
           # Create a temporary manifest with inline comments and resource limits
           cat > /tmp/kafka.yaml <<'YAML'
@@ -100,7 +92,7 @@ jobs:
                   fsGroup: 1001
                 containers:
                   - name: kafka
-                    image: bitnami/kafka:${TAG}
+                    image: bitnami/kafka:3.8.0-debian-12
                     imagePullPolicy: IfNotPresent
                     env:
                       # Enable KRaft explicitly
@@ -191,7 +183,7 @@ jobs:
           kubectl apply -f /tmp/kafka.yaml
 
           # Ensure the image tag is exactly what we want (avoid stale tag in template)
-          kubectl -n app set image statefulset/kafka kafka=bitnami/kafka:${TAG} --record
+          kubectl -n app set image statefulset/kafka kafka=bitnami/kafka:3.8.0-debian-12 --record
 
       - name: 🔎 Rollout status
         run: |
