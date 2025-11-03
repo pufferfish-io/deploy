@@ -68,6 +68,32 @@ jobs:
                 port: 9093
                 targetPort: 9093
           ---
+          # KRaft server.properties via ConfigMap (read-only)
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: kafka-config
+            namespace: app
+          data:
+            server.properties: |
+              process.roles=broker,controller
+              node.id=1
+              controller.quorum.voters=1@kafka-0.kafka-headless.app.svc.cluster.local:9093
+              listeners=INTERNAL://:9092,CONTROLLER://:9093,ADMIN://:9094
+              advertised.listeners=INTERNAL://kafka.app.svc.cluster.local:9092,ADMIN://kafka-0.kafka-headless.app.svc.cluster.local:9094
+              listener.security.protocol.map=INTERNAL:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT,ADMIN:PLAINTEXT
+              inter.broker.listener.name=ADMIN
+              num.partitions=1
+              auto.create.topics.enable=true
+              log.dirs=/var/lib/kafka/data
+              log.retention.hours=24
+              log.retention.bytes=268435456
+              offsets.topic.replication.factor=1
+              transaction.state.log.replication.factor=1
+              transaction.state.log.min.isr=1
+              sasl.enabled.mechanisms=SCRAM-SHA-512
+              listener.name.internal.sasl.enabled.mechanisms=SCRAM-SHA-512
+          ---
           # Single‑replica Kafka (KRaft) with light limits; inter-broker PLAINTEXT; client SASL/SCRAM512
           apiVersion: apps/v1
           kind: StatefulSet
@@ -93,36 +119,9 @@ jobs:
                   fsGroup: 1001
                 volumes:
                   - name: config
-                    emptyDir: {}
+                    configMap:
+                      name: kafka-config
                 initContainers:
-                  - name: generate-config
-                    image: apache/kafka:3.8.0
-                    command: ["/bin/sh","-lc"]
-                    args:
-                      - |
-                        set -e
-                        cat > /etc/kafka/server.properties << 'EOF'
-                        process.roles=broker,controller
-                        node.id=1
-                        controller.quorum.voters=1@kafka-0.kafka-headless.app.svc.cluster.local:9093
-                        listeners=INTERNAL://:9092,CONTROLLER://:9093,ADMIN://:9094
-                        advertised.listeners=INTERNAL://kafka.app.svc.cluster.local:9092,ADMIN://kafka-0.kafka-headless.app.svc.cluster.local:9094
-                        listener.security.protocol.map=INTERNAL:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT,ADMIN:PLAINTEXT
-                        inter.broker.listener.name=ADMIN
-                        num.partitions=1
-                        auto.create.topics.enable=true
-                        log.dirs=/var/lib/kafka/data
-                        log.retention.hours=24
-                        log.retention.bytes=268435456
-                        offsets.topic.replication.factor=1
-                        transaction.state.log.replication.factor=1
-                        transaction.state.log.min.isr=1
-                        sasl.enabled.mechanisms=SCRAM-SHA-512
-                        listener.name.internal.sasl.enabled.mechanisms=SCRAM-SHA-512
-                        EOF
-                    volumeMounts:
-                      - name: config
-                        mountPath: /etc/kafka
                   - name: format-storage
                     image: apache/kafka:3.8.0
                     command: ["/bin/sh","-lc"]
@@ -140,6 +139,8 @@ jobs:
                     volumeMounts:
                       - name: data
                         mountPath: /var/lib/kafka/data
+                      - name: config
+                        mountPath: /etc/kafka
                 containers:
                   - name: kafka
                     image: apache/kafka:3.8.0
