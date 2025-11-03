@@ -162,12 +162,23 @@ jobs:
             exit 1
           fi
 
-          # Escape values for safe inlining into remote shell
-          ue=$(printf %q "$SASL_USER")
-          pe=$(printf %q "$SASL_PASS")
+          # Use ephemeral rpk-runner to talk to Admin API service — avoids container name issues
+          kubectl -n app run rpk-runner --image=redpandadata/redpanda --restart=Never --command -- sleep 600 || true
+          kubectl -n app wait --for=condition=Ready pod/rpk-runner --timeout=120s
 
-          # Create user only if it doesn't exist; admin API on 127.0.0.1:9644 inside pod
-          kubectl -n app exec redpanda-0 -- sh -lc "rpk acl user list --api-urls 127.0.0.1:9644 | grep -qw $ue || rpk acl user create $ue -p $pe --mechanism SCRAM-SHA-512 --api-urls 127.0.0.1:9644"
+          # Idempotent create of SCRAM-SHA-512 user via Admin API on the Service
+          kubectl -n app exec rpk-runner -- sh -lc '
+            set -e
+            if rpk acl user list --api-urls redpanda.app.svc.cluster.local:9644 | awk "NR>1{print \$1}" | grep -qw -- "'$SASL_USER'"; then
+              echo "user exists: '$SASL_USER'"
+            else
+              rpk acl user create "'$SASL_USER'" -p "'$SASL_PASS'" --mechanism SCRAM-SHA-512 --api-urls redpanda.app.svc.cluster.local:9644
+              echo "user created: '$SASL_USER'"
+            fi'
+
+      - name: 🧹 Cleanup rpk runner
+        run: |
+          kubectl -n app delete pod rpk-runner --ignore-not-found
 
       - name: 📣 Summary
         run: |
