@@ -161,9 +161,9 @@ jobs:
                       - name: KAFKA_CFG_LOG_RETENTION_BYTES
                         value: "268435456"
 
-                      # JVM heap small
+                      # JVM heap smaller to avoid OOM spikes on 1Gi node
                       - name: KAFKA_HEAP_OPTS
-                        value: "-Xmx256m -Xms256m"
+                        value: "-Xmx192m -Xms192m"
                     ports:
                       - containerPort: 9092
                         name: kafka
@@ -180,7 +180,7 @@ jobs:
                         memory: 384Mi
                       limits:
                         cpu: 500m
-                        memory: 700Mi
+                        memory: 640Mi
             volumeClaimTemplates:
               - metadata:
                   name: data
@@ -224,38 +224,6 @@ jobs:
             kubectl -n app describe pod "$POD" | sed -n '/Events/,$p' || true
             exit "$ROLLOUT_RC"
           fi
-
-      - name: 🔐 Ensure SASL user exists (SCRAM-SHA-512)
-        env:
-          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
-          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${SASL_USER:-}" ] || [ -z "${SASL_PASS:-}" ]; then
-            echo "KAFKA_SASL_USERNAME / KAFKA_SASL_PASSWORD secrets are required" >&2
-            exit 1
-          fi
-
-          # Wait for admin listener to accept connections, then create SCRAM user
-          # If user exists, kafka-configs.sh --describe returns the SCRAM config; otherwise, we add it.
-          kubectl -n app exec kafka-0 -- bash -lc '
-            set -e
-            # wait for admin listener readiness
-            for i in $(seq 1 120); do
-              if kafka-topics.sh --bootstrap-server 127.0.0.1:9094 --list >/dev/null 2>&1; then break; fi
-              sleep 2
-            done
-            DESCRIBE=$(kafka-configs.sh --bootstrap-server 127.0.0.1:9094 \
-              --describe --entity-type users --entity-name "'$SASL_USER'" || true)
-            if echo "$DESCRIBE" | grep -q "Configs for user"; then
-              echo "user exists: '$SASL_USER'"
-            else
-              kafka-configs.sh --bootstrap-server 127.0.0.1:9094 \
-                --alter --add-config "SCRAM-SHA-512=[password='"'$SASL_PASS'"']" \
-                --entity-type users --entity-name "'$SASL_USER'"
-              echo "user created: '$SASL_USER'"
-            fi'
 
       - name: 📣 Summary
         run: |
