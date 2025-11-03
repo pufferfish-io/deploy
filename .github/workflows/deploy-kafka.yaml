@@ -91,6 +91,9 @@ jobs:
                 terminationGracePeriodSeconds: 30
                 securityContext:
                   fsGroup: 1001
+                volumes:
+                  - name: config
+                    emptyDir: {}
                 initContainers:
                   - name: generate-config
                     image: apache/kafka:3.8.0
@@ -175,20 +178,6 @@ jobs:
                   resources:
                     requests:
                       storage: 5Gi
-            # extra volumes
-            # (emptyDir used to hold generated server.properties)
-            # Note: volumeClaimTemplates above defines persistent data volume
-            # for /var/lib/kafka/data
-          ---
-          apiVersion: v1
-          kind: Pod
-          metadata:
-            name: placeholder-do-not-create
-          spec:
-            volumes:
-            - name: config
-              emptyDir: {}
-          # This placeholder defines volume schema; actual volumes are embedded in StatefulSet via same name
           YAML
 
           # Apply manifest idempotently
