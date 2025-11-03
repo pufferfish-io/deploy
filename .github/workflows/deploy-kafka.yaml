@@ -90,14 +90,29 @@ jobs:
                 terminationGracePeriodSeconds: 30
                 securityContext:
                   fsGroup: 1001
+                initContainers:
+                  - name: format-storage
+                    image: apache/kafka:3.8.0
+                    command: ["/bin/sh","-lc"]
+                    args:
+                      - |
+                        set -e
+                        cd /opt/kafka
+                        if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+                          CID=$(bin/kafka-storage.sh random-uuid)
+                          echo "Formatting storage with CLUSTER_ID=$CID"
+                          bin/kafka-storage.sh format -t "$CID" -c config/kraft/server.properties
+                        else
+                          echo "Storage already formatted"
+                        fi
+                    volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/kafka/data
                 containers:
                   - name: kafka
-                    image: bitnami/kafka:3.8.0-debian-12
+                    image: apache/kafka:3.8.0
                     imagePullPolicy: IfNotPresent
                     env:
-                      # Enable KRaft explicitly
-                      - name: KAFKA_ENABLE_KRAFT
-                        value: "yes"
                       # KRaft single-node
                       - name: KAFKA_CFG_PROCESS_ROLES
                         value: broker,controller
@@ -116,11 +131,11 @@ jobs:
                       - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
                         value: INTERNAL:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT,ADMIN:PLAINTEXT
 
-                      # Use ADMIN (PLAINTEXT) for inter-broker to avoid bootstrap auth loop on first start
+                      # Use ADMIN (PLAINTEXT) for inter-broker
                       - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
                         value: ADMIN
 
-                      # Client SASL settings (for INTERNAL listener)
+                      # Client SASL settings (for INTERNAL listener only)
                       - name: KAFKA_CFG_SASL_ENABLED_MECHANISMS
                         value: SCRAM-SHA-512
                       - name: KAFKA_CFG_LISTENER_NAME_INTERNAL_SASL_ENABLED_MECHANISMS
@@ -134,7 +149,9 @@ jobs:
                       - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
                         value: "1"
 
-                      # Misc light profile / retention
+                      # Data dir and light retention
+                      - name: KAFKA_CFG_LOG_DIRS
+                        value: "/var/lib/kafka/data"
                       - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
                         value: "true"
                       - name: KAFKA_CFG_NUM_PARTITIONS
@@ -147,10 +164,6 @@ jobs:
                       # JVM heap small
                       - name: KAFKA_HEAP_OPTS
                         value: "-Xmx256m -Xms256m"
-
-                      # Allow PLAINTEXT listeners in Bitnami image
-                      - name: ALLOW_PLAINTEXT_LISTENER
-                        value: "yes"
                     ports:
                       - containerPort: 9092
                         name: kafka
@@ -160,7 +173,7 @@ jobs:
                         name: admin
                     volumeMounts:
                       - name: data
-                        mountPath: /bitnami/kafka
+                        mountPath: /var/lib/kafka/data
                     resources:
                       requests:
                         cpu: 200m
@@ -183,7 +196,7 @@ jobs:
           kubectl apply -f /tmp/kafka.yaml
 
           # Ensure the image tag is exactly what we want (avoid stale tag in template)
-          kubectl -n app set image statefulset/kafka kafka=bitnami/kafka:3.8.0-debian-12 --record
+          kubectl -n app set image statefulset/kafka kafka=apache/kafka:3.8.0 --record
 
       - name: 🔎 Rollout status
         run: |

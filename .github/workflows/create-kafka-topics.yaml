@@ -65,17 +65,11 @@ jobs:
             exit 1
           fi
 
-          # Prefer in-cluster Kafka pod if it exists, else create ephemeral rpk runner
-          if kubectl -n app get pod kafka-0 >/dev/null 2>&1; then
-            echo "exec_prefix=kubectl -n app exec kafka-0 -- rpk" >> $GITHUB_OUTPUT
-            echo "runner=none" >> $GITHUB_OUTPUT
-          else
-            # Create a short‑lived pod with rpk to operate against BOOTSTRAP
-            kubectl -n app run rpk-runner --image=redpandadata/redpanda --restart=Never --command -- sleep 600 || true
-            kubectl -n app wait --for=condition=Ready pod/rpk-runner --timeout=90s
-            echo "exec_prefix=kubectl -n app exec rpk-runner -- rpk" >> $GITHUB_OUTPUT
-            echo "runner=rpk-runner" >> $GITHUB_OUTPUT
-          fi
+          # Always use ephemeral rpk runner (works with any Kafka broker)
+          kubectl -n app run rpk-runner --image=redpandadata/redpanda --restart=Never --command -- sleep 600 || true
+          kubectl -n app wait --for=condition=Ready pod/rpk-runner --timeout=120s
+          echo "exec_prefix=kubectl -n app exec rpk-runner -- rpk" >> $GITHUB_OUTPUT
+          echo "runner=rpk-runner" >> $GITHUB_OUTPUT
 
       - name: 🧵 Ensure topics exist (create if missing only)
         env:
