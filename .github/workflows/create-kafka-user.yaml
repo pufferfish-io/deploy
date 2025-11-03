@@ -45,18 +45,20 @@ jobs:
           # Wait for admin 9094 to respond, then set SCRAM password (creates if absent, updates if present)
           kubectl -n app exec kafka-tools -- bash -lc '
             set -e
+            TOPICS=/opt/kafka/bin/kafka-topics.sh
+            CONFIGS=/opt/kafka/bin/kafka-configs.sh
             for i in $(seq 1 120); do
-              if kafka-topics.sh --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 --list >/dev/null 2>&1; then break; fi
+              if "$TOPICS" --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 --list >/dev/null 2>&1; then break; fi
               sleep 2
             done
-            DESCRIBE=$(kafka-configs.sh --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 \
+            DESCRIBE=$("$CONFIGS" --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 \
               --describe --entity-type users --entity-name "'$SASL_USER'" || true)
             if echo "$DESCRIBE" | grep -q "Configs for user"; then
               echo "updating password for user: '$SASL_USER'"
             else
               echo "creating user: '$SASL_USER'"
             fi
-            kafka-configs.sh --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 \
+            "$CONFIGS" --bootstrap-server kafka-0.kafka-headless.app.svc.cluster.local:9094 \
               --alter --add-config "SCRAM-SHA-512=[password='"'$SASL_PASS'"']" \
               --entity-type users --entity-name "'$SASL_USER'"
           '
@@ -69,4 +71,3 @@ jobs:
         run: |
           echo "Kafka user ensured: ${{ secrets.KAFKA_SASL_USERNAME }} (SCRAM-SHA-512)"
           echo "Bootstrap: kafka.app.svc.cluster.local:9092"
-
