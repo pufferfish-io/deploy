@@ -77,7 +77,8 @@ jobs:
             labels:
               app: kafka
           spec:
-            serviceName: kafka
+            # IMPORTANT: use headless service for stable per-pod DNS (kafka-0.kafka-headless...)
+            serviceName: kafka-headless
             replicas: 1
             selector:
               matchLabels:
