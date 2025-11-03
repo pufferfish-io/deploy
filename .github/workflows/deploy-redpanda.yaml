@@ -1,4 +1,4 @@
-name: 🚀 Deploy Redpanda (Kafka API)
+name: 🚀 Deploy Kafka (KRaft, single node)
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   deploy:
-    name: 🔄 Deploy Redpanda into K3s
+    name: 🔄 Deploy Kafka (KRaft) into K3s
     runs-on: self-hosted
 
     env:
@@ -26,7 +26,7 @@ jobs:
           # Idempotent: create namespace only if it does not exist
           kubectl get ns app || kubectl create ns app
 
-      - name: 📦 Apply Redpanda manifest (StatefulSet + Service)
+      - name: 📦 Apply Kafka manifest (StatefulSet + Service)
         env:
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
@@ -34,121 +34,132 @@ jobs:
           TAG=${IMAGE_TAG:-latest}
 
           # Create a temporary manifest with inline comments and resource limits
-          cat > /tmp/redpanda.yaml <<'YAML'
+          cat > /tmp/kafka.yaml <<'YAML'
           # Namespace is applied to be self‑contained; safe if already exists
           apiVersion: v1
           kind: Namespace
           metadata:
             name: app
           ---
-          # ClusterIP Service exposing Kafka API (9092) and Admin API (9644)
+          # ClusterIP Service for clients (Kafka API 9092)
           apiVersion: v1
           kind: Service
           metadata:
-            name: redpanda
+            name: kafka
             namespace: app
             labels:
-              app: redpanda
+              app: kafka
           spec:
             type: ClusterIP
             selector:
-              app: redpanda
+              app: kafka
             ports:
               - name: kafka
                 port: 9092
                 targetPort: 9092
-              - name: admin
-                port: 9644
-                targetPort: 9644
           ---
-          # Single‑replica StatefulSet with strict CPU/RAM limits for small node
+          # Single‑replica Kafka (KRaft) with light limits; inter-broker PLAINTEXT; client SASL/SCRAM512
           apiVersion: apps/v1
           kind: StatefulSet
           metadata:
-            name: redpanda
+            name: kafka
             namespace: app
             labels:
-              app: redpanda
+              app: kafka
           spec:
-            serviceName: redpanda
+            serviceName: kafka
             replicas: 1
             selector:
               matchLabels:
-                app: redpanda
+                app: kafka
             template:
               metadata:
                 labels:
-                  app: redpanda
+                  app: kafka
               spec:
                 terminationGracePeriodSeconds: 30
                 containers:
-                  - name: redpanda
-                    image: redpandadata/redpanda:latest
-                    # If you need a fixed tag, update via input or here
+                  - name: kafka
+                    image: bitnami/kafka:3.7
                     imagePullPolicy: IfNotPresent
-                    command: ["/usr/bin/rpk"]
-                    args:
-                      # Start Redpanda tuned for 1 vCPU / ~0.5GiB RAM
-                      - redpanda
-                      - start
-                      - --smp
-                      - "1"                # use 1 CPU core
-                      - --memory
-                      - 512M               # memory managed internally by RP
-                      - --reserve-memory
-                      - 0M                 # no extra reservation on tiny node
-                      - --overprovisioned  # relax HW checks for small VMs
-                      - --check=false      # skip slow startup checks
-                      - --node-id
-                      - "0"
-                      - --kafka-addr
-                      - "0.0.0.0:9092"    # listen inside Pod
-                      - --advertise-kafka-addr
-                      - "redpanda.app.svc.cluster.local:9092" # DNS seen by apps
-                      - --rpc-addr
-                      - "0.0.0.0:33145"
-                      - --advertise-rpc-addr
-                      - "redpanda.app.svc.cluster.local:33145"
-                      - --set
-                      - redpanda.enable_sasl=true              # enable SCRAM
-                      - --set
-                      - redpanda.auto_create_topics_enabled=true # ok for pet prod
-                      - --set
-                      - redpanda.default_topic_partitions=1    # save CPU/disk
+                    env:
+                      # KRaft single-node
+                      - name: KAFKA_CFG_PROCESS_ROLES
+                        value: broker,controller
+                      - name: KAFKA_CFG_NODE_ID
+                        value: "1"
+                      - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS
+                        value: "1@127.0.0.1:9093"
+                      - name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES
+                        value: CONTROLLER
+
+                      # Listeners: INTERNAL for clients (SASL_PLAINTEXT), ADMIN for local admin (PLAINTEXT), CONTROLLER for KRaft
+                      - name: KAFKA_CFG_LISTENERS
+                        value: INTERNAL://:9092,CONTROLLER://:9093,ADMIN://:9094
+                      - name: KAFKA_CFG_ADVERTISED_LISTENERS
+                        value: INTERNAL://kafka.app.svc.cluster.local:9092,ADMIN://127.0.0.1:9094
+                      - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+                        value: INTERNAL:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT,ADMIN:PLAINTEXT
+
+                      # Use ADMIN (PLAINTEXT) for inter-broker to avoid bootstrap auth loop on first start
+                      - name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
+                        value: ADMIN
+
+                      # Client SASL settings (for INTERNAL listener)
+                      - name: KAFKA_CFG_SASL_ENABLED_MECHANISMS
+                        value: SCRAM-SHA-512
+                      - name: KAFKA_CFG_LISTENER_NAME_INTERNAL_SASL_ENABLED_MECHANISMS
+                        value: SCRAM-SHA-512
+
+                      # Misc light profile
+                      - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+                        value: "true"
+                      - name: KAFKA_CFG_NUM_PARTITIONS
+                        value: "1"
+
+                      # JVM heap small
+                      - name: KAFKA_HEAP_OPTS
+                        value: "-Xmx256m -Xms256m"
+
+                      # Allow PLAINTEXT listeners in Bitnami image
+                      - name: ALLOW_PLAINTEXT_LISTENER
+                        value: "yes"
                     ports:
                       - containerPort: 9092
                         name: kafka
-                      - containerPort: 9644
+                      - containerPort: 9093
+                        name: controller
+                      - containerPort: 9094
                         name: admin
                     volumeMounts:
                       - name: data
-                        mountPath: /var/lib/redpanda/data
+                        mountPath: /bitnami/kafka
                     resources:
                       requests:
                         cpu: 200m
-                        memory: 256Mi
+                        memory: 384Mi
                       limits:
                         cpu: 500m
-                        memory: 512Mi
+                        memory: 700Mi
             volumeClaimTemplates:
               - metadata:
                   name: data
                 spec:
                   accessModes: ["ReadWriteOnce"]
-                  storageClassName: local-path  # default in k3s
+                  storageClassName: local-path
                   resources:
                     requests:
-                      storage: 5Gi              # adjust per your disk
+                      storage: 5Gi
           YAML
 
           # Apply manifest idempotently
-          kubectl apply -f /tmp/redpanda.yaml
+          kubectl apply -f /tmp/kafka.yaml
 
       - name: 🔎 Rollout status
         run: |
           set -e
-          kubectl -n app rollout status statefulset/redpanda --timeout=180s
-          kubectl -n app get pods -l app=redpanda -o wide
+          kubectl -n app rollout status statefulset/kafka --timeout=240s
+          kubectl -n app get pods -l app=kafka -o wide
 
       - name: 🔐 Ensure SASL user exists (SCRAM-SHA-512)
         env:
@@ -162,25 +173,22 @@ jobs:
             exit 1
           fi
 
-          # Use ephemeral rpk-runner to talk to Admin API service — avoids container name issues
-          kubectl -n app run rpk-runner --image=redpandadata/redpanda --restart=Never --command -- sleep 600 || true
-          kubectl -n app wait --for=condition=Ready pod/rpk-runner --timeout=120s
-
-          # Idempotent create of SCRAM-SHA-512 user via Admin API on the Service
-          kubectl -n app exec rpk-runner -- sh -lc '
+          # Exec into Kafka pod and create SCRAM user via ADMIN listener (PLAINTEXT on 127.0.0.1:9094)
+          # If user exists, kafka-configs.sh --describe returns the SCRAM config; otherwise, we add it.
+          kubectl -n app exec kafka-0 -- bash -lc '
             set -e
-            if rpk acl user list --api-urls redpanda.app.svc.cluster.local:9644 | awk "NR>1{print \$1}" | grep -qw -- "'$SASL_USER'"; then
+            DESCRIBE=$(kafka-configs.sh --bootstrap-server 127.0.0.1:9094 \
+              --describe --entity-type users --entity-name "'$SASL_USER'" || true)
+            if echo "$DESCRIBE" | grep -q "Configs for user"; then
               echo "user exists: '$SASL_USER'"
             else
-              rpk acl user create "'$SASL_USER'" -p "'$SASL_PASS'" --mechanism SCRAM-SHA-512 --api-urls redpanda.app.svc.cluster.local:9644
+              kafka-configs.sh --bootstrap-server 127.0.0.1:9094 \
+                --alter --add-config "SCRAM-SHA-512=[password='"'$SASL_PASS'"']" \
+                --entity-type users --entity-name "'$SASL_USER'"
               echo "user created: '$SASL_USER'"
             fi'
 
-      - name: 🧹 Cleanup rpk runner
-        run: |
-          kubectl -n app delete pod rpk-runner --ignore-not-found
-
       - name: 📣 Summary
         run: |
-          echo "Bootstrap for services: redpanda.app.svc.cluster.local:9092"
+          echo "Bootstrap for services: kafka.app.svc.cluster.local:9092"
           echo "Ensure repo Variables are set for topic names and group/client IDs."

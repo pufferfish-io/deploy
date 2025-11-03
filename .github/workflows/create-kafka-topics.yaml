@@ -21,7 +21,7 @@ jobs:
       # K3s kubeconfig path (same pattern as other workflows in this repo)
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
-      # Bootstrap server to use; if empty, fallback to in-cluster Redpanda Service
+      # Bootstrap server to use; if empty, fallback to in-cluster Kafka Service
       BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
 
       # Topic names are taken from repo Variables (fill them in Settings → Variables)
@@ -55,7 +55,7 @@ jobs:
           # Determine bootstrap
           BOOTSTRAP=${BOOTSTRAP:-}
           if [ -z "$BOOTSTRAP" ]; then
-            BOOTSTRAP="redpanda.app.svc.cluster.local:9092"
+            BOOTSTRAP="kafka.app.svc.cluster.local:9092"
           fi
           echo "bootstrap=$BOOTSTRAP" >> $GITHUB_OUTPUT
 
@@ -65,9 +65,9 @@ jobs:
             exit 1
           fi
 
-          # Prefer in-cluster Redpanda pod if it exists, else create ephemeral rpk runner
-          if kubectl -n app get pod redpanda-0 >/dev/null 2>&1; then
-            echo "exec_prefix=kubectl -n app exec redpanda-0 -- rpk" >> $GITHUB_OUTPUT
+          # Prefer in-cluster Kafka pod if it exists, else create ephemeral rpk runner
+          if kubectl -n app get pod kafka-0 >/dev/null 2>&1; then
+            echo "exec_prefix=kubectl -n app exec kafka-0 -- rpk" >> $GITHUB_OUTPUT
             echo "runner=none" >> $GITHUB_OUTPUT
           else
             # Create a short‑lived pod with rpk to operate against BOOTSTRAP
@@ -128,4 +128,3 @@ jobs:
         if: ${{ steps.prep.outputs.runner == 'rpk-runner' }}
         run: |
           kubectl -n app delete pod rpk-runner --ignore-not-found
-
