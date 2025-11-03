@@ -198,11 +198,32 @@ jobs:
           # Ensure the image tag is exactly what we want (avoid stale tag in template)
           kubectl -n app set image statefulset/kafka kafka=apache/kafka:3.8.0 --record
 
-      - name: 🔎 Rollout status
+      - name: 🔎 Rollout with live watch (pods + logs)
         run: |
-          set -e
-          kubectl -n app rollout status statefulset/kafka --timeout=420s
-          kubectl -n app get pods -l app=kafka -o wide
+          set -euo pipefail
+          # Background live views limited by timeout; rollout runs in foreground
+          POD="$(kubectl -n app get pod -l app=kafka -o jsonpath='{.items[0].metadata.name}' || true)"
+          if [ -n "$POD" ]; then
+            ( timeout 420s kubectl -n app logs -f "$POD" || true ) &
+            LOG_PID=$!
+            ( timeout 420s kubectl -n app get pods -l app=kafka -w || true ) &
+            WATCH_PID=$!
+          fi
+
+          ROLLOUT_RC=0
+          kubectl -n app rollout status statefulset/kafka --timeout=420s || ROLLOUT_RC=$?
+          kubectl -n app get pods -l app=kafka -o wide || true
+
+          # Cleanup background watchers
+          if [ -n "${LOG_PID:-}" ]; then kill "$LOG_PID" 2>/dev/null || true; wait "$LOG_PID" 2>/dev/null || true; fi
+          if [ -n "${WATCH_PID:-}" ]; then kill "$WATCH_PID" 2>/dev/null || true; wait "$WATCH_PID" 2>/dev/null || true; fi
+
+          # If rollout failed, show recent events for faster diagnosis
+          if [ "$ROLLOUT_RC" -ne 0 ] && [ -n "$POD" ]; then
+            echo "--- Pod events (tail) ---"
+            kubectl -n app describe pod "$POD" | sed -n '/Events/,$p' || true
+            exit "$ROLLOUT_RC"
+          fi
 
       - name: 🔐 Ensure SASL user exists (SCRAM-SHA-512)
         env:
