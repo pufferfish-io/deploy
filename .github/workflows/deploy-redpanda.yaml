@@ -1,0 +1,175 @@
+name: 🚀 Deploy Redpanda (Kafka API)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Redpanda image tag (default: latest)"
+        required: false
+        default: "latest"
+
+jobs:
+  deploy:
+    name: 🔄 Deploy Redpanda into K3s
+    runs-on: self-hosted
+
+    env:
+      # K3s kubeconfig path used across existing workflows
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          # Idempotent: create namespace only if it does not exist
+          kubectl get ns app || kubectl create ns app
+
+      - name: 📦 Apply Redpanda manifest (StatefulSet + Service)
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          TAG=${IMAGE_TAG:-latest}
+
+          # Create a temporary manifest with inline comments and resource limits
+          cat > /tmp/redpanda.yaml <<'YAML'
+          # Namespace is applied to be self‑contained; safe if already exists
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: app
+          ---
+          # ClusterIP Service exposing Kafka API (9092) and Admin API (9644)
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: redpanda
+            namespace: app
+            labels:
+              app: redpanda
+          spec:
+            type: ClusterIP
+            selector:
+              app: redpanda
+            ports:
+              - name: kafka
+                port: 9092
+                targetPort: 9092
+              - name: admin
+                port: 9644
+                targetPort: 9644
+          ---
+          # Single‑replica StatefulSet with strict CPU/RAM limits for small node
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: redpanda
+            namespace: app
+            labels:
+              app: redpanda
+          spec:
+            serviceName: redpanda
+            replicas: 1
+            selector:
+              matchLabels:
+                app: redpanda
+            template:
+              metadata:
+                labels:
+                  app: redpanda
+              spec:
+                terminationGracePeriodSeconds: 30
+                containers:
+                  - name: redpanda
+                    image: redpandadata/redpanda:latest
+                    # If you need a fixed tag, update via input or here
+                    imagePullPolicy: IfNotPresent
+                    command: ["/usr/bin/rpk"]
+                    args:
+                      # Start Redpanda tuned for 1 vCPU / ~0.5GiB RAM
+                      - redpanda
+                      - start
+                      - --smp
+                      - "1"                # use 1 CPU core
+                      - --memory
+                      - 512M               # memory managed internally by RP
+                      - --reserve-memory
+                      - 0M                 # no extra reservation on tiny node
+                      - --overprovisioned  # relax HW checks for small VMs
+                      - --check=false      # skip slow startup checks
+                      - --node-id
+                      - "0"
+                      - --kafka-addr
+                      - "0.0.0.0:9092"    # listen inside Pod
+                      - --advertise-kafka-addr
+                      - "redpanda.app.svc.cluster.local:9092" # DNS seen by apps
+                      - --rpc-addr
+                      - "0.0.0.0:33145"
+                      - --advertise-rpc-addr
+                      - "redpanda.app.svc.cluster.local:33145"
+                      - --set
+                      - redpanda.enable_sasl=true              # enable SCRAM
+                      - --set
+                      - redpanda.auto_create_topics_enabled=true # ok for pet prod
+                      - --set
+                      - redpanda.default_topic_partitions=1    # save CPU/disk
+                    ports:
+                      - containerPort: 9092
+                        name: kafka
+                      - containerPort: 9644
+                        name: admin
+                    volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/redpanda/data
+                    resources:
+                      requests:
+                        cpu: 200m
+                        memory: 256Mi
+                      limits:
+                        cpu: 500m
+                        memory: 512Mi
+            volumeClaimTemplates:
+              - metadata:
+                  name: data
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  storageClassName: local-path  # default in k3s
+                  resources:
+                    requests:
+                      storage: 5Gi              # adjust per your disk
+          YAML
+
+          # Apply manifest idempotently
+          kubectl apply -f /tmp/redpanda.yaml
+
+      - name: 🔎 Rollout status
+        run: |
+          set -e
+          kubectl -n app rollout status statefulset/redpanda --timeout=180s
+          kubectl -n app get pods -l app=redpanda -o wide
+
+      - name: 🔐 Ensure SASL user exists (SCRAM-SHA-512)
+        env:
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SASL_USER:-}" ] || [ -z "${SASL_PASS:-}" ]; then
+            echo "KAFKA_SASL_USERNAME / KAFKA_SASL_PASSWORD secrets are required" >&2
+            exit 1
+          fi
+
+          # Escape values for safe inlining into remote shell
+          ue=$(printf %q "$SASL_USER")
+          pe=$(printf %q "$SASL_PASS")
+
+          # Create user only if it doesn't exist; admin API on 127.0.0.1:9644 inside pod
+          kubectl -n app exec redpanda-0 -- sh -lc "rpk acl user list --api-urls 127.0.0.1:9644 | grep -qw $ue || rpk acl user create $ue -p $pe --mechanism SCRAM-SHA-512 --api-urls 127.0.0.1:9644"
+
+      - name: 📣 Summary
+        run: |
+          echo "Bootstrap for services: redpanda.app.svc.cluster.local:9092"
+          echo "Ensure repo Variables are set for topic names and group/client IDs."

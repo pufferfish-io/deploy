@@ -1,0 +1,131 @@
+name: 📚 Create Kafka Topics (idempotent)
+
+on:
+  workflow_dispatch:
+    inputs:
+      retention_bytes:
+        description: "retention.bytes per topic (default 268435456 = 256MiB)"
+        required: false
+        default: "268435456"
+      retention_ms:
+        description: "retention.ms per topic (default 86400000 = 1 day)"
+        required: false
+        default: "86400000"
+
+jobs:
+  topics:
+    name: 🔄 Ensure topics exist (lightweight)
+    runs-on: self-hosted
+
+    env:
+      # K3s kubeconfig path (same pattern as other workflows in this repo)
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+      # Bootstrap server to use; if empty, fallback to in-cluster Redpanda Service
+      BOOTSTRAP: ${{ vars.KAFKA_BOOTSTRAP_SERVERS_VALUE }}
+
+      # Topic names are taken from repo Variables (fill them in Settings → Variables)
+      TOPIC_VK_REQ: ${{ vars.KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE }}
+      TOPIC_VK_RESP_PREP: ${{ vars.KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER }}
+      TOPIC_VK_UPDATES: ${{ vars.KAFKA_TOPIC_NAME_VK_UPDATES }}
+      TOPIC_NORMALIZED: ${{ vars.KAFKA_TOPIC_NAME_NORMALIZED_MSG }}
+      TOPIC_TG_REQ: ${{ vars.KAFKA_TOPIC_NAME_TG_REQUEST_MESSAGE }}
+      TOPIC_TG_RESP_PREP: ${{ vars.KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER }}
+      TOPIC_TG_UPDATES: ${{ vars.KAFKA_TOPIC_NAME_TELEGRAM_UPDATES }}
+      TOPIC_TG_NORMALIZED: ${{ vars.KAFKA_TOPIC_NAME_TELEGRAM_NORMALIZED }}
+      TOPIC_OCR_REQ: ${{ vars.KAFKA_TOPIC_NAME_OCR_REQUEST }}
+
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: |
+          # Idempotent
+          kubectl get ns app || kubectl create ns app
+
+      - name: 🛠 Prepare rpk execution context
+        id: prep
+        env:
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          # Determine bootstrap
+          BOOTSTRAP=${BOOTSTRAP:-}
+          if [ -z "$BOOTSTRAP" ]; then
+            BOOTSTRAP="redpanda.app.svc.cluster.local:9092"
+          fi
+          echo "bootstrap=$BOOTSTRAP" >> $GITHUB_OUTPUT
+
+          # Validate SASL creds
+          if [ -z "${SASL_USER:-}" ] || [ -z "${SASL_PASS:-}" ]; then
+            echo "KAFKA_SASL_USERNAME / KAFKA_SASL_PASSWORD secrets are required" >&2
+            exit 1
+          fi
+
+          # Prefer in-cluster Redpanda pod if it exists, else create ephemeral rpk runner
+          if kubectl -n app get pod redpanda-0 >/dev/null 2>&1; then
+            echo "exec_prefix=kubectl -n app exec redpanda-0 -- rpk" >> $GITHUB_OUTPUT
+            echo "runner=none" >> $GITHUB_OUTPUT
+          else
+            # Create a short‑lived pod with rpk to operate against BOOTSTRAP
+            kubectl -n app run rpk-runner --image=redpandadata/redpanda --restart=Never --command -- sleep 600 || true
+            kubectl -n app wait --for=condition=Ready pod/rpk-runner --timeout=90s
+            echo "exec_prefix=kubectl -n app exec rpk-runner -- rpk" >> $GITHUB_OUTPUT
+            echo "runner=rpk-runner" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🧵 Ensure topics exist (create if missing only)
+        env:
+          SASL_USER: ${{ secrets.KAFKA_SASL_USERNAME }}
+          SASL_PASS: ${{ secrets.KAFKA_SASL_PASSWORD }}
+          RET_BYTES: ${{ github.event.inputs.retention_bytes }}
+          RET_MS: ${{ github.event.inputs.retention_ms }}
+        run: |
+          set -euo pipefail
+
+          BOOTSTRAP="${{ steps.prep.outputs.bootstrap }}"
+          RPK="${{ steps.prep.outputs.exec_prefix }}"
+
+          # Collect topics from env, drop empties, deduplicate
+          topics=$(printf "%s\n" \
+            "${TOPIC_VK_REQ:-}" \
+            "${TOPIC_VK_RESP_PREP:-}" \
+            "${TOPIC_VK_UPDATES:-}" \
+            "${TOPIC_NORMALIZED:-}" \
+            "${TOPIC_TG_REQ:-}" \
+            "${TOPIC_TG_RESP_PREP:-}" \
+            "${TOPIC_TG_UPDATES:-}" \
+            "${TOPIC_TG_NORMALIZED:-}" \
+            "${TOPIC_OCR_REQ:-}" \
+          | sed '/^$/d' | awk '!seen[$0]++')
+
+          echo "Topics to ensure:" "$topics"
+
+          ensure_topic() {
+            t="$1"
+            # list topics, skip header line, check presence
+            if $RPK topic list --brokers "$BOOTSTRAP" --user "$SASL_USER" --password "$SASL_PASS" --sasl-mechanism SCRAM-SHA-512 \
+              | awk 'NR>1 {print $1}' | grep -qw -- "$t"; then
+              echo "exists: $t"
+            else
+              echo "create: $t"
+              $RPK topic create "$t" -p 1 -r 1 \
+                -c retention.bytes=${RET_BYTES:-268435456} \
+                -c retention.ms=${RET_MS:-86400000} \
+                --brokers "$BOOTSTRAP" \
+                --user "$SASL_USER" --password "$SASL_PASS" --sasl-mechanism SCRAM-SHA-512
+            fi
+          }
+
+          for t in $topics; do
+            ensure_topic "$t"
+          done
+
+      - name: 🧹 Cleanup runner (if created)
+        if: ${{ steps.prep.outputs.runner == 'rpk-runner' }}
+        run: |
+          kubectl -n app delete pod rpk-runner --ignore-not-found
+

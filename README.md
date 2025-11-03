@@ -6,13 +6,13 @@ Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegr
 
 All unique environment key names used across services, with classification (variable | secret).
 
-- ! DOC3TEXT_ACCESS_TOKEN_URL — variable
-- ! DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
-- ! DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR — secret
-- ! DOC3TEXT_G_RPC_URL — variable
-- ! G_RPC_SERVER_DOC2TEXT_ADDR — variable
-- ! HTTP_SERVER_DOC2TEXT_ADDR — variable
-- ! KAFKA_BOOTSTRAP_SERVERS_VALUE — variable
+- DOC3TEXT_ACCESS_TOKEN_URL — variable
+- DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
+- DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR — secret
+- DOC3TEXT_G_RPC_URL — variable
+- G_RPC_SERVER_DOC2TEXT_ADDR — variable
+- HTTP_SERVER_DOC2TEXT_ADDR — variable
+- KAFKA_BOOTSTRAP_SERVERS_VALUE — variable
 - KAFKA_CLIENT_ID_VK_SENDER — variable
 - KAFKA_CLIENT_ID_MESSAGE_RESPONDER — variable
 - KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR — variable
