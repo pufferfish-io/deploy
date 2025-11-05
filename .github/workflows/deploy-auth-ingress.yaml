@@ -47,6 +47,7 @@ jobs:
           helm upgrade --install keycloak oci://registry-1.docker.io/bitnamicharts/keycloak \
             --namespace auth --create-namespace \
             --set production=true \
+            --set proxyHeaders=xforwarded \
             --set auth.existingSecret=keycloak-admin \
             --set proxy=edge \
             --set postgresql.enabled=true \
