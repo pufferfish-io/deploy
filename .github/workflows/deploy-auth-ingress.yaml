@@ -90,13 +90,30 @@ jobs:
       - name: "⏳ Wait rollout + diagnostics on failure"
         run: |
           set -euo pipefail
+          echo "▶️ Live status while waiting for rollout..."
+          (
+            while true; do
+              echo "===== $(date) ====="
+              echo "Deployment status:"; kubectl -n auth get deploy keycloak -o wide || true
+              echo -n "Replicas: "; kubectl -n auth get deploy keycloak -o jsonpath='{.status.readyReplicas}/{.status.replicas} ready, {.status.updatedReplicas} updated, {.status.availableReplicas} available, {.status.unavailableReplicas} unavailable' 2>/dev/null || echo "n/a"; echo
+              echo "Pods:"; kubectl -n auth get pods -l app=keycloak -o wide || true
+              echo "ReplicaSets:"; kubectl -n auth get rs -l app=keycloak -o wide || true
+              echo "Recent events:"; kubectl -n auth get events --sort-by=.lastTimestamp | tail -n 15 || true
+              sleep 20
+            done
+          ) & MON=$!
+          trap 'kill $MON 2>/dev/null || true' EXIT
+
           if ! kubectl -n auth rollout status deploy/keycloak --timeout=10m; then
+            kill $MON 2>/dev/null || true; trap - EXIT
+            echo "--- Final diagnostics (failure) ---"
             echo "--- Pods:"; kubectl -n auth get pods -l app=keycloak -o wide || true
             echo "--- Describe deploy:"; kubectl -n auth describe deploy/keycloak || true
             echo "--- Describe pods:"; kubectl -n auth describe pods -l app=keycloak || true
             echo "--- Recent events:"; kubectl -n auth get events --sort-by=.lastTimestamp | tail -n 200 || true
             exit 1
           fi
+          kill $MON 2>/dev/null || true; trap - EXIT
           kubectl -n auth get pods -l app=keycloak -o wide
 
       - name: "📤 Deploy Ingress: auth.pufferfish.ru"
