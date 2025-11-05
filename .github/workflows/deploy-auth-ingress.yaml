@@ -1,14 +1,16 @@
-name: "🚀 Deploy Ingress: auth.pufferfish.ru"
+name: "🚀 Deploy Keycloak + Ingress: auth.pufferfish.ru"
 
 on:
   workflow_dispatch:
 
 jobs:
   apply-ingress:
-    name: "🔄 Apply Ingress for Keycloak"
+    name: "🔄 Deploy Keycloak and apply Ingress"
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER }}
+      KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
 
     steps:
       - name: "🧾 Checkout repository"
@@ -17,12 +19,69 @@ jobs:
         run: |
           kubectl get ns auth || kubectl create ns auth
 
+      - name: "📦 Deploy/Upgrade Keycloak (Helm)"
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYCLOAK_ADMIN_USER:-}" ] || [ -z "${KEYCLOAK_ADMIN_PASSWORD:-}" ]; then
+            echo "❌ Missing secrets: set KEYCLOAK_ADMIN_USER and KEYCLOAK_ADMIN_PASSWORD in repo secrets" >&2
+            exit 1
+          fi
+
+          echo "🔐 Creating/Updating Secret: keycloak-admin"
+          # Creates/updates Secret with admin creds (idempotent)
+          kubectl -n auth create secret generic keycloak-admin \
+            --from-literal=admin-user="${KEYCLOAK_ADMIN_USER}" \
+            --from-literal=admin-password="${KEYCLOAK_ADMIN_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "⏳ Installing/Upgrading Bitnami Keycloak chart..."
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          # Notes:
+          # - postgresql.enabled=true: uses embedded PostgreSQL (auto-generated credentials)
+          # - proxy=edge: proper X-Forwarded-* handling behind ingress-nginx
+          # - we keep ingress disabled here; we use our own manifest k8s/ingress/keycloak-ingress.yaml
+          helm upgrade --install keycloak bitnami/keycloak \
+            --namespace auth --create-namespace \
+            --set production=true \
+            --set auth.existingSecret=keycloak-admin \
+            --set proxy=edge \
+            --set postgresql.enabled=true \
+            --wait --timeout 15m
+
+      - name: "⏳ Wait for Keycloak pods Ready"
+        run: |
+          set -e
+          # Wait for any pod of this release to become Ready
+          kubectl -n auth wait --for=condition=Ready pod -l app.kubernetes.io/instance=keycloak --timeout=10m
+          kubectl -n auth get pods -l app.kubernetes.io/instance=keycloak -o wide
+
       - name: "📤 Deploy Ingress: auth.pufferfish.ru"
         run: |
           echo "⏳ Applying Keycloak Ingress..."
           kubectl apply -f k8s/ingress/keycloak-ingress.yaml
 
+      - name: "🔐 Wait for Certificate (keycloak-tls)"
+        run: |
+          set -e
+          for i in $(seq 1 60); do
+            kubectl -n auth get certificate keycloak-tls && break || true
+            sleep 5
+            if [ "$i" -eq 60 ]; then echo "❌ certificate/keycloak-tls not created"; exit 1; fi
+          done
+          kubectl -n auth wait --for=condition=Ready certificate/keycloak-tls --timeout=10m
+          kubectl -n auth get certificate
+          echo "Secret type:" $(kubectl -n auth get secret keycloak-tls -o jsonpath='{.type}')
+
+      - name: "🔎 Orders/Challenges (debug)"
+        continue-on-error: true
+        run: |
+          kubectl -n auth get orders.acme.cert-manager.io -o wide || true
+          kubectl -n auth get challenges.acme.cert-manager.io -o wide || true
+
       - name: "📋 Show result"
         run: |
           echo "✅ Ingresses in auth namespace:"
           kubectl get ingress -n auth -o wide
+          echo "🌐 HTTP probe over HTTPS (auth.pufferfish.ru):"
+          curl -I --max-time 15 https://auth.pufferfish.ru || true
