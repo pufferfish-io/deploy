@@ -2,19 +2,6 @@ name: "🚀 Deploy Official Keycloak + Ingress: auth.pufferfish.ru"
 
 on:
   workflow_dispatch:
-    inputs:
-      image:
-        description: "Official Keycloak image"
-        required: false
-        default: "quay.io/keycloak/keycloak:26.0.6"
-      admin_user:
-        description: "Keycloak admin username"
-        required: false
-        default: "admin"
-      host:
-        description: "Public hostname for Keycloak"
-        required: false
-        default: "auth.pufferfish.ru"
 
 jobs:
   apply-ingress:
@@ -22,9 +9,9 @@ jobs:
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      KC_IMAGE: ${{ inputs.image }}
-      KC_ADMIN_USER: ${{ inputs.admin_user }}
-      KC_HOST: ${{ inputs.host }}
+      KC_IMAGE: quay.io/keycloak/keycloak:26.0.6
+      KC_ADMIN_USER: admin
+      KC_HOST: auth.pufferfish.ru
       KC_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
 
     steps:
