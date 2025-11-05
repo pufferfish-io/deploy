@@ -11,6 +11,7 @@ jobs:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER }}
       KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+      HELM_EXPERIMENTAL_OCI: "1"
 
     steps:
       - name: "🧾 Checkout repository"
@@ -34,14 +35,16 @@ jobs:
             --from-literal=admin-password="${KEYCLOAK_ADMIN_PASSWORD}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          echo "⏳ Installing/Upgrading Bitnami Keycloak chart..."
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo update
+          echo "⏳ Installing/Upgrading Bitnami Keycloak chart (OCI)..."
+          helm version || true
+          # Use OCI registry to avoid blocked HTTP helm repo (403 in some regions)
+          # Docs: https://github.com/bitnami/charts/tree/main/bitnami/keycloak#oci-registry
+          # Chart: oci://registry-1.docker.io/bitnamicharts/keycloak
           # Notes:
           # - postgresql.enabled=true: uses embedded PostgreSQL (auto-generated credentials)
           # - proxy=edge: proper X-Forwarded-* handling behind ingress-nginx
           # - we keep ingress disabled here; we use our own manifest k8s/ingress/keycloak-ingress.yaml
-          helm upgrade --install keycloak bitnami/keycloak \
+          helm upgrade --install keycloak oci://registry-1.docker.io/bitnamicharts/keycloak \
             --namespace auth --create-namespace \
             --set production=true \
             --set auth.existingSecret=keycloak-admin \
