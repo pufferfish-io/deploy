@@ -9,7 +9,7 @@ jobs:
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      KC_IMAGE: quay.io/keycloak/keycloak:26.0.6
+      KC_IMAGE: quay.io/keycloak/keycloak:21.1.2
       KC_ADMIN_USER: admin
       KC_HOST: auth.pufferfish.ru
       KC_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
@@ -72,6 +72,8 @@ jobs:
                       - { name: KC_PROXY, value: edge }
                       - { name: KC_HOSTNAME, value: ${KC_HOST} }
                       - { name: KC_HEALTH_ENABLED, value: "true" }
+                      # Keep memory low for 1Gi node; compatible with 768Mi limit
+                      - { name: JAVA_OPTS_APPEND, value: "-Xms256m -Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m" }
                     ports: [{ containerPort: 8080, name: http }]
                     readinessProbe:
                       httpGet: { path: /realms/master, port: http }
