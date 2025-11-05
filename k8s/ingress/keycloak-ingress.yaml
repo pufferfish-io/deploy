@@ -5,7 +5,6 @@ metadata:
   namespace: auth
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01    # наш ClusterIssuer
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
 

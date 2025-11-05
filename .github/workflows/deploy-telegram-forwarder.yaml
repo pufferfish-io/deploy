@@ -45,6 +45,13 @@ jobs:
       - name: 📤 Apply manifests
         run: |
           kubectl -n app apply -f k8s/telegram-forwarder/deploy.yaml
+      - name: ⏱️ Wait TLS certificate (telegram-forwarder)
+        run: |
+          echo "⏳ Waiting for certificate/tg-forwarder-tls in app namespace..."
+          kubectl -n app wait --for=condition=Ready certificate/tg-forwarder-tls --timeout=10m || true
+          echo "📄 Certificate status:" && kubectl -n app get certificate tg-forwarder-tls -o wide || true
+          echo "🧩 ACME resources (app):" && kubectl -n app get challenge,order -o wide || true
+          echo "🛠 Ingress list (app):" && kubectl -n app get ingress -o wide || true
 
       - name: 🖼 Update image tag
         env:
