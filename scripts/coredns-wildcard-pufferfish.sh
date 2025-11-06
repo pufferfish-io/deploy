@@ -47,11 +47,16 @@ if grep -q "template IN A" "${CORE_ORIG}" && grep -q "${BASE_DOMAIN}" "${CORE_OR
   # Replace only the IP inside existing answer lines for our domain block
   sed -E "s/(answer \"\{\{ \\.Name \}\} 60 IN A )([0-9.]+)(\")/\1${INGRESS_CLUSTER_IP}\3/" "${CORE_ORIG}" >"${CORE_NEW}"
 else
-  echo "[i] Inserting split-DNS template block before 'forward . ...' in Corefile..."
+  echo "[i] Inserting split-DNS template block inside '.:53 { ... }' in Corefile..."
   TEMPL=$(cat <<'EOF'
     # Split-DNS: resolve *.BASE_DOMAIN to ingress ClusterIP (in-cluster only)
     template IN A {
         match ^([a-z0-9-]+\.)*BASE_DOMAIN\.$
+        answer "{{ .Name }} 60 IN A INGRESS_IP"
+    }
+    # Also match in case trailing dot is not present
+    template IN A {
+        match ^([a-z0-9-]+\.)*BASE_DOMAIN$
         answer "{{ .Name }} 60 IN A INGRESS_IP"
     }
 EOF
@@ -60,12 +65,8 @@ EOF
   TEMPL=${TEMPL//INGRESS_IP/${INGRESS_CLUSTER_IP}}
 
   awk -v block="$TEMPL" '
-    inserted==0 && $0 ~ /^\s*forward\s+\.\s+/ { print block; inserted=1 }
+    server==0 && $0 ~ /^\s*\.:53\s*\{/ { print; print block; server=1; next }
     { print }
-    END { if (inserted==0) {
-            print block > "/dev/stderr";
-            exit 0;
-          } }
   ' "${CORE_ORIG}" >"${CORE_NEW}"
 fi
 
@@ -83,7 +84,7 @@ kubectl -n minio run -it --rm dns-smoke --restart=Never --image=busybox:1.36 -- 
   sh -c "nslookup backminio.${BASE_DOMAIN} || true; nslookup consoleminio.${BASE_DOMAIN} || true"
 set -e
 
-cat <<EONEXT
+cat <<'EONEXT'
 
 Next steps to re-issue MinIO certs (run once):
 
@@ -95,10 +96,10 @@ Next steps to re-issue MinIO certs (run once):
   # 2) Re-run the MinIO deploy workflow (or Helm upgrade locally)
   #    Helm example (if running by hand):
   #  helm upgrade --install minio minio/minio \
-  #    -n minio --create-namespace \
-  #    -f k8s/minio/values-prod.yaml \
-  #    --set auth.rootUser="$MINIO_ROOT_USER" \
-  #    --set auth.rootPassword="$MINIO_ROOT_PASSWORD"
+    #    -n minio --create-namespace \
+    #    -f k8s/minio/values-prod.yaml \
+    #    --set auth.rootUser="$MINIO_ROOT_USER" \
+    #    --set auth.rootPassword="$MINIO_ROOT_PASSWORD"
 
   # 3) Watch certs become Ready
   kubectl -n minio get certificate -w
@@ -106,4 +107,3 @@ Next steps to re-issue MinIO certs (run once):
 EONEXT
 
 echo "[Done]"
-
