@@ -1,6 +1,6 @@
 # Deploy
 
-Infrastructure manifests and GitHub Actions for services (Ingress, MinIO, Telegram Forwarder).
+Infrastructure manifests and GitHub Actions for services (Ingress, Telegram Forwarder).
 
 ## New Environment Keys (consolidated)
 
@@ -83,7 +83,6 @@ All unique environment key names used across services, with classification (vari
 
 - `k8s/ingress/hello-demo-ingress.yaml`: Ingress for `demo.pufferfish.ru`.
 - `k8s/ingress/keycloak-ingress.yaml`: Ingress for `auth.pufferfish.ru`.
-- `k8s/minio/values-prod.yaml`: Helm values for MinIO (prod).
 - `k8s/telegram-forwarder/deploy.yaml`: Namespace, Deployment, Service, Ingress for Telegram Forwarder.
 - `.github/workflows/*`: GitHub Actions to apply manifests and deploy services.
 
@@ -443,12 +442,7 @@ Build & Push (service repository)
 
 ## MinIO
 
-- Deployed via Helm using workflow `.github/workflows/deploy-minio.yaml` (manual run).
-- Required GitHub Secrets:
-  - `MINIO_ROOT_USER`
-  - `MINIO_ROOT_PASSWORD`
-- Внешние Ingress-ы отключены (см. `k8s/minio/values-prod.yaml`: `consoleIngress.enabled=false`, `ingress.enabled=false`). Доступ к консоли и API — только внутри кластера. Посмотреть сервисы: `kubectl -n minio get svc`.
-- Чтобы включить внешний доступ позже — установите значения `consoleIngress.enabled` и/или `ingress.enabled` в `true` и задайте домены/сертификаты.
+This project no longer contains MinIO workflows or manifests.
 
 ## Useful Commands
 
