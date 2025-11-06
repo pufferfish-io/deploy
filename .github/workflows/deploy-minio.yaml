@@ -76,10 +76,10 @@ jobs:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
           echo "Certificate info (minio API):"
-          echo | openssl s_client -connect minio.back.pufferfish.ru:443 -servername minio.back.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo | openssl s_client -connect backminio.pufferfish.ru:443 -servername backminio.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
           echo "HTTP probe over HTTPS (API):"
-          curl -I --max-time 15 https://minio.back.pufferfish.ru || true
+          curl -I --max-time 15 https://backminio.pufferfish.ru || true
           echo "Certificate info (console):"
-          echo | openssl s_client -connect console.back.pufferfish.ru:443 -servername console.back.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo | openssl s_client -connect consoleminio.pufferfish.ru:443 -servername consoleminio.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
           echo "HTTP probe over HTTPS (console):"
-          curl -I --max-time 15 https://console.back.pufferfish.ru || true
+          curl -I --max-time 15 https://consoleminio.pufferfish.ru || true

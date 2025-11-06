@@ -34,11 +34,11 @@ consoleIngress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
   hosts:
-    - console.back.pufferfish.ru
+    - consoleminio.pufferfish.ru
   tls:
     - secretName: minio-console-tls
       hosts:
-        - console.back.pufferfish.ru
+        - consoleminio.pufferfish.ru
 
 ingress:
   enabled: true
@@ -46,8 +46,8 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
   hosts:
-    - minio.back.pufferfish.ru
+    - backminio.pufferfish.ru
   tls:
     - secretName: minio-tls
       hosts:
-        - minio.back.pufferfish.ru
+        - backminio.pufferfish.ru
