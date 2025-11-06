@@ -10,7 +10,7 @@ jobs:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🧱 Preflight: ensure CoreDNS split-DNS (*.pufferfish.ru)
+      - name: "🧱 Preflight: ensure CoreDNS split-DNS (*.pufferfish.ru)"
         continue-on-error: true
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -24,7 +24,7 @@ jobs:
             echo "No scripts/coredns-wildcard-pufferfish.sh found; skipping split-DNS preflight"
           fi
 
-      - name: 🔎 Preflight: in-cluster DNS for public domains
+      - name: "🔎 Preflight: in-cluster DNS for public domains"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -45,7 +45,7 @@ jobs:
             exit 1
           fi
 
-      - name: 🚀 Deploy MinIO via Helm (wait + atomic)
+      - name: "🚀 Deploy MinIO via Helm (wait + atomic)"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
           MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
@@ -59,10 +59,10 @@ jobs:
             --values k8s/minio/values-prod.yaml \
             --set auth.rootUser="${MINIO_ROOT_USER}" \
             --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
-            --wait --wait-for-jobs --atomic \
+            --wait --atomic \
             --timeout 20m
 
-      - name: ⏳ Wait MinIO pods Ready + diagnostics
+      - name: "⏳ Wait MinIO pods Ready + diagnostics"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -84,7 +84,7 @@ jobs:
           kill $MON 2>/dev/null || true; trap - EXIT
           kubectl -n minio get pods -o wide
 
-      - name: 🔌 Service reachability (minio:9000)
+      - name: "🔌 Service reachability (minio:9000)"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -100,13 +100,13 @@ jobs:
           echo "$OUT" | grep -q "Address: ${SVC_IP}"
           echo "$OUT" | grep -qi "succeeded\|open"
 
-      - name: 📋 Show ingresses
+      - name: "📋 Show ingresses"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
           kubectl -n minio get ingress -o wide || true
 
-      - name: 📝 Helm status + post-job summary
+      - name: "📝 Helm status + post-job summary"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -116,7 +116,7 @@ jobs:
           kubectl -n minio wait --for=condition=complete job/minio-post-job --timeout=10m || true
           kubectl -n minio logs job/minio-post-job --tail=200 || true
 
-      - name: 🔐 Wait for Certificates (minio/console)
+      - name: "🔐 Wait for Certificates (minio/console)"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -132,7 +132,7 @@ jobs:
           done
           kubectl -n minio get certificate
 
-      - name: 🔍 ACME debug (orders/challenges)
+      - name: "🔍 ACME debug (orders/challenges)"
         continue-on-error: true
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -142,7 +142,7 @@ jobs:
           kubectl -n minio get challenges.acme.cert-manager.io -o wide || true
           kubectl -n cert-manager logs deploy/cert-manager --since=15m | egrep -i "pufferfish|minio|acme|challenge|http-01" || true
 
-      - name: ✅ TLS check (best effort)
+      - name: "✅ TLS check (best effort)"
         continue-on-error: true
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
