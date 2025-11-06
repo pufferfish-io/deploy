@@ -1,0 +1,57 @@
+name: "🚀 Deploy MinIO"
+on:
+  push:
+    paths: ["k8s/minio/**"]
+  workflow_dispatch: {}
+
+jobs:
+  deploy-minio:
+    runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Ensure namespace
+        run: kubectl get ns minio || kubectl create ns minio
+
+      - name: 🔐 Create/Update secret (no commit)
+        env:
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+        run: |
+          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || { echo "❌ Set repo secrets MINIO_ROOT_USER / MINIO_ROOT_PASSWORD"; exit 1; }
+          kubectl -n minio delete secret minio-root --ignore-not-found
+          kubectl -n minio create secret generic minio-root \
+            --from-literal=MINIO_ROOT_USER="$MINIO_ROOT_USER" \
+            --from-literal=MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD"
+
+      - name: 📦 Apply manifests
+        run: |
+          kubectl apply -f k8s/minio/namespace.yaml
+          kubectl apply -f k8s/minio/pvc.yaml
+          kubectl apply -f k8s/minio/deploy.yaml
+          kubectl apply -f k8s/minio/svc.yaml
+          kubectl apply -f k8s/minio/ingress.yaml
+
+      - name: ⏳ Wait rollout
+        run: kubectl -n minio rollout status deploy/minio --timeout=300s
+
+      - name: 🔐 Wait TLS (1 cert for 2 hosts)
+        run: |
+          for i in $(seq 1 60); do
+            kubectl -n minio get certificate minio-tls && break || true
+            sleep 5
+            if [ "$i" -eq 60 ]; then echo "❌ certificate/minio-tls not created"; exit 1; fi
+          done
+          kubectl -n minio wait --for=condition=Ready certificate/minio-tls --timeout=10m
+          kubectl -n minio get certificate
+
+      - name: ✅ HTTPS smoke
+        continue-on-error: true
+        run: |
+          echo "Console:"
+          curl -I --max-time 15 https://console.minio.pufferfish.ru || true
+          echo "API root (expect 403/405/200):"
+          curl -I --max-time 15 https://minio.pufferfish.ru || true
