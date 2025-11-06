@@ -43,8 +43,8 @@ jobs:
           ) & MON=$!
           trap 'kill $MON 2>/dev/null || true' EXIT
 
-          # Wait for any minio pods to become Ready
-          kubectl -n minio wait --for=condition=Ready pod -l app.kubernetes.io/name=minio --timeout=10m
+          # Wait for any minio pods to become Ready (label: app=minio)
+          kubectl -n minio wait --for=condition=Ready pod -l app=minio --timeout=10m
           kill $MON 2>/dev/null || true; trap - EXIT
           kubectl -n minio get pods -o wide
 
