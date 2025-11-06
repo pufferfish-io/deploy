@@ -65,7 +65,10 @@ EOF
   TEMPL=${TEMPL//INGRESS_IP/${INGRESS_CLUSTER_IP}}
 
   awk -v block="$TEMPL" '
-    server==0 && $0 ~ /^\s*\.:53\s*\{/ { print; print block; server=1; next }
+    # Insert block inside the main server block .:53 { ... }
+    inserted==0 && $0 ~ /^\s*\.:53\s*\{/ { print; print block; inserted=1; next }
+    inserted==0 && $0 ~ /^\s*\.:53\s*$/ { print; waiting_brace=1; next }
+    waiting_brace==1 { print; print block; waiting_brace=0; inserted=1; next }
     { print }
   ' "${CORE_ORIG}" >"${CORE_NEW}"
 fi
