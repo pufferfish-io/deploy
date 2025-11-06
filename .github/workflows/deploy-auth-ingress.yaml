@@ -9,7 +9,7 @@ jobs:
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      KC_IMAGE: quay.io/keycloak/keycloak:21.1.2
+      KC_IMAGE: quay.io/keycloak/keycloak:20.0.5
       KC_ADMIN_USER: admin
       KC_HOST: auth.pufferfish.ru
       KC_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
