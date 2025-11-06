@@ -1,8 +1,6 @@
 name: "🚀 Deploy MinIO"
 on:
-  push:
-    paths: ["k8s/minio/**"]
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   deploy-minio:
