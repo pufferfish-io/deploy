@@ -22,8 +22,8 @@ jobs:
           helm upgrade --install minio minio/minio \
             --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
-            --set rootUser="${MINIO_ROOT_USER}" \
-            --set rootPassword="${MINIO_ROOT_PASSWORD}" \
+            --set auth.rootUser="${MINIO_ROOT_USER}" \
+            --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
             --timeout 15m
 
       - name: ⏳ Wait MinIO pods Ready + diagnostics
