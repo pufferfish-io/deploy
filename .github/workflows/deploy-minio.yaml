@@ -106,6 +106,65 @@ jobs:
           kill $MON 2>/dev/null || true; trap - EXIT
           kubectl -n minio get pods -o wide
 
+      - name: "🧰 Fix CoreDNS for minio Service (idempotent)"
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          set -euo pipefail
+          SVC_IP=$(kubectl -n minio get svc minio -o jsonpath='{.spec.clusterIP}')
+          echo "Using SVC_IP=${SVC_IP}"
+          COREF=/tmp/Corefile
+          kubectl -n kube-system get cm coredns -o jsonpath='{.data.Corefile}' > "$COREF"
+          # Remove previous short-circuit block if present
+          awk 'BEGIN{skip=0}
+               /^[[:space:]]*# K8s svc short-circuit for minio Service/{skip=1;next}
+               skip==1 && /^[[:space:]]*kubernetes[[:space:]]+cluster\.local/{print;skip=0;next}
+               skip==1{next}
+               {print}' "$COREF" > "$COREF.clean"
+          # Insert updated block BEFORE kubernetes plugin
+          awk -v ip="$SVC_IP" 'BEGIN{
+            b="    # K8s svc short-circuit for minio Service (before kubernetes)\n" \
+              "    template IN A {\n" \
+              "        match ^minio\\.minio\\.svc\\.cluster\\.local\\.$\n" \
+              "        answer \"{{ .Name }} 30 IN A " ip "\"\n" \
+              "    }\n" \
+              "    template IN A {\n" \
+              "        match ^minio\\.minio\\.svc\\.cluster\\.local$\n" \
+              "        answer \"{{ .Name }} 30 IN A " ip "\"\n" \
+              "    }\n" \
+              "    template IN A {\n" \
+              "        match ^minio\\.minio\\.svc\\.$\n" \
+              "        answer \"{{ .Name }} 30 IN A " ip "\"\n" \
+              "    }\n" \
+              "    template IN A {\n" \
+              "        match ^minio\\.minio\\.svc$\n" \
+              "        answer \"{{ .Name }} 30 IN A " ip "\"\n" \
+              "    }\n"
+          }
+          ins==0 && /^[[:space:]]*kubernetes[[:space:]]+cluster\.local/ { print b; print; ins=1; next }
+          { print }' "$COREF.clean" > "$COREF.new"
+          kubectl -n kube-system create cm coredns --from-file=Corefile="$COREF.new" -o yaml --dry-run=client | kubectl -n kube-system apply -f -
+          kubectl -n kube-system rollout restart deploy/coredns
+          kubectl -n kube-system rollout status deploy/coredns --timeout=180s
+          # Quick verification: DNS + port
+          kubectl -n minio delete pod dnsok --ignore-not-found=true >/dev/null 2>&1 || true
+          kubectl -n minio run dnsok --restart=Never --image=busybox:1.36 -- sleep 60 >/dev/null 2>&1
+          kubectl -n minio wait --for=condition=Ready pod/dnsok --timeout=90s
+          OUT=$(kubectl -n minio exec dnsok -- sh -lc "nslookup minio.minio.svc.cluster.local; echo; nslookup minio; echo; nc -zv minio 9000 || true")
+          kubectl -n minio delete pod dnsok --now --ignore-not-found=true >/dev/null 2>&1 || true
+          echo "$OUT"
+          echo "$OUT" | grep -q "Address: ${SVC_IP}"
+          echo "$OUT" | grep -qi "succeeded\|open"
+
+      - name: "♻️ Restart post-job and wait completion"
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          set -euo pipefail
+          kubectl -n minio delete pod -l job-name=minio-post-job --ignore-not-found=true || true
+          kubectl -n minio wait --for=condition=complete job/minio-post-job --timeout=10m
+          kubectl -n minio logs job/minio-post-job --tail=200 || true
+
       - name: "🔌 Service reachability (minio:9000)"
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
