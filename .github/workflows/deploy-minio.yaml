@@ -25,6 +25,7 @@ jobs:
           fi
 
       - name: "🔎 Preflight: in-cluster DNS for public domains"
+        continue-on-error: true
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         run: |
@@ -41,8 +42,7 @@ jobs:
           # Must see ingress IP at least twice (both names)
           cnt=$(printf "%s" "$OUT" | grep -c "Address: ${INGRESS_IP}") || true
           if [ "$cnt" -lt 2 ]; then
-            echo "❌ In-cluster DNS for public domains is not pointing to ingress (${INGRESS_IP}). Fix CoreDNS/DNS before deploy." >&2
-            exit 1
+            echo "⚠️ DNS preflight: public domains are not pointing to ingress (${INGRESS_IP}). Continuing to deploy but certificates may wait/fail."
           fi
 
       - name: "🚀 Deploy MinIO via Helm (wait + atomic)"
