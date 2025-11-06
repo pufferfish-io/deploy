@@ -16,10 +16,70 @@ jobs:
           MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
+          set -euo pipefail
           helm repo add minio https://charts.min.io/
+          helm repo update
           helm upgrade --install minio minio/minio \
             --namespace minio --create-namespace \
             --values k8s/minio/values-prod.yaml \
-            --set auth.rootUser="${MINIO_ROOT_USER}" \
-            --set auth.rootPassword="${MINIO_ROOT_PASSWORD}" \
+            --set rootUser="${MINIO_ROOT_USER}" \
+            --set rootPassword="${MINIO_ROOT_PASSWORD}" \
             --timeout 15m
+
+      - name: ⏳ Wait MinIO pods Ready + diagnostics
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          set -euo pipefail
+          echo "▶️ Live status while waiting for MinIO pods to be Ready..."
+          (
+            while true; do
+              echo "===== $(date) ====="
+              echo "Pods:"; kubectl -n minio get pods -o wide || true
+              echo "Services:"; kubectl -n minio get svc -o wide || true
+              echo "Recent events:"; kubectl -n minio get events --sort-by=.lastTimestamp | tail -n 20 || true
+              sleep 15
+            done
+          ) & MON=$!
+          trap 'kill $MON 2>/dev/null || true' EXIT
+
+          # Wait for any minio pods to become Ready
+          kubectl -n minio wait --for=condition=Ready pod -l app.kubernetes.io/name=minio --timeout=10m
+          kill $MON 2>/dev/null || true; trap - EXIT
+          kubectl -n minio get pods -o wide
+
+      - name: 📋 Show ingresses
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          kubectl -n minio get ingress -o wide || true
+
+      - name: 🔐 Wait for Certificates (minio/console)
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          set -e
+          # Wait for resources to appear
+          for name in minio-tls minio-console-tls; do
+            for i in $(seq 1 60); do
+              kubectl -n minio get certificate "$name" && break || true
+              sleep 5
+              if [ "$i" -eq 60 ]; then echo "❌ certificate/$name not created"; exit 1; fi
+            done
+            kubectl -n minio wait --for=condition=Ready certificate/"$name" --timeout=10m
+          done
+          kubectl -n minio get certificate
+
+      - name: ✅ TLS check (best effort)
+        continue-on-error: true
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        run: |
+          echo "Certificate info (minio API):"
+          echo | openssl s_client -connect minio.back.pufferfish.ru:443 -servername minio.back.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo "HTTP probe over HTTPS (API):"
+          curl -I --max-time 15 https://minio.back.pufferfish.ru || true
+          echo "Certificate info (console):"
+          echo | openssl s_client -connect console.back.pufferfish.ru:443 -servername console.back.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo "HTTP probe over HTTPS (console):"
+          curl -I --max-time 15 https://console.back.pufferfish.ru || true
