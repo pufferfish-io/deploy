@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: minio
   namespace: minio
+  labels:
+    app: minio
 spec:
   replicas: 1
   selector:
@@ -14,63 +16,48 @@ spec:
         app: minio
     spec:
       nodeSelector:
-        kubernetes.io/hostname: debian # worker-node
-
+        kubernetes.io/hostname: debian
       containers:
         - name: minio
           image: minio/minio:RELEASE.2021-04-22T15-44-28Z
-          args:
-            - server
-            - /data
-            - "--console-address=:9001"
-
+          imagePullPolicy: IfNotPresent
+          args: ["server", "/data"]   # без консоли в этом релизе
           env:
             - name: MINIO_ROOT_USER
               valueFrom:
                 secretKeyRef:
                   name: minio-root
                   key: MINIO_ROOT_USER
-
             - name: MINIO_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: minio-root
                   key: MINIO_ROOT_PASSWORD
-
           ports:
             - containerPort: 9000
-            - containerPort: 9001
-
-          volumeMounts:
-            - name: data
-              mountPath: /data
-
+              name: s3
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 50m
+              memory: 128Mi
             limits:
-              cpu: 600m
+              cpu: 300m
               memory: 512Mi
-
           readinessProbe:
             httpGet:
               path: /minio/health/ready
               port: 9000
             initialDelaySeconds: 10
-            timeoutSeconds: 5
-            periodSeconds: 10
-            failureThreshold: 6
-
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /minio/health/live
               port: 9000
             initialDelaySeconds: 20
-            timeoutSeconds: 5
-            periodSeconds: 20
-            failureThreshold: 6
-
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data
       volumes:
         - name: data
           persistentVolumeClaim:

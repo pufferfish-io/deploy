@@ -1,18 +1,16 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
 
-# ВАЖНО: 'secrets: read' НЕЛЬЗЯ — такого права нет.
-# Из-за этого GitHub не видел workflow.
 permissions:
   contents: read
   id-token: write
+  secrets: read   # важно: чтобы видеть орг-секреты
 
 jobs:
   deploy-minio:
     runs-on: self-hosted
-
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
@@ -26,41 +24,35 @@ jobs:
       - name: ✅ Check secrets
         shell: bash
         run: |
-          set -euo pipefail
-          if [[ -z "${MINIO_ROOT_USER:-}" || -z "${MINIO_ROOT_PASSWORD:-}" ]]; then
-            echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"
-            exit 1
-          fi
-          echo "::add-mask::$MINIO_ROOT_USER"
-          echo "::add-mask::$MINIO_ROOT_PASSWORD"
+          set -e
+          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || { echo "❌ MINIO_ROOT_* secrets missing"; exit 1; }
           echo "✅ Secrets OK"
 
       - name: 🛠 Ensure namespace
-        shell: bash
-        run: |
-          kubectl get ns minio || kubectl create ns minio
+        run: kubectl get ns minio || kubectl create ns minio
 
       - name: 🔐 Create secret
-        shell: bash
         run: |
-          set -euo pipefail
           kubectl -n minio delete secret minio-root --ignore-not-found
           kubectl -n minio create secret generic minio-root \
             --from-literal=MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             --from-literal=MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD"
 
       - name: 📦 Apply manifests
-        shell: bash
         run: |
-          set -euo pipefail
           kubectl apply -f k8s/minio/namespace.yaml
           kubectl apply -f k8s/minio/pvc.yaml
           kubectl apply -f k8s/minio/deploy.yaml
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
 
-      - name: ⏳ Wait rollout
+      - name: ⏳ Wait rollout + debug on fail
         shell: bash
         run: |
-          set -euo pipefail
-          kubectl -n minio rollout status deploy/minio --timeout=300s
+          set -e
+          if ! kubectl -n minio rollout status deploy/minio --timeout=300s; then
+            kubectl -n minio get pods -o wide
+            kubectl -n minio describe deploy/minio
+            kubectl -n minio logs deploy/minio --tail=200 || true
+            exit 1
+          fi

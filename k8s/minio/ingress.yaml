@@ -5,16 +5,12 @@ metadata:
   namespace: minio
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-http01
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
-
   tls:
     - hosts:
         - minio.pufferfish.ru
-        - console.minio.pufferfish.ru
       secretName: minio-tls
-
   rules:
     - host: minio.pufferfish.ru
       http:
@@ -26,14 +22,3 @@ spec:
                 name: minio
                 port:
                   number: 9000
-
-    - host: console.minio.pufferfish.ru
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: minio
-                port:
-                  number: 9001
