@@ -1,15 +1,15 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
-
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   deploy-minio:
+    name: Deploy MinIO
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      # ЖЁСТКО закрепляем рабочий образ (без консоли):
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
-      # эти два секрета должны быть заданы в Org/Repo (MINIO_ROOT_USER / MINIO_ROOT_PASSWORD)
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
 
@@ -20,14 +20,17 @@ jobs:
       - name: ✅ Check secrets
         shell: bash
         run: |
-          set -e
-          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || { echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"; exit 1; }
-          echo "OK: secrets present"
+          if [ -z "${MINIO_ROOT_USER:-}" ] || [ -z "${MINIO_ROOT_PASSWORD:-}" ]; then
+            echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"; exit 1
+          fi
+          echo "✅ Secrets OK"
 
       - name: 🛠 Ensure namespace
-        run: kubectl get ns minio || kubectl create ns minio
+        shell: bash
+        run: |
+          kubectl get ns minio >/dev/null 2>&1 || kubectl create ns minio
 
-      - name: 🔐 Create/Update admin secret
+      - name: 🔐 Create/Update secret
         shell: bash
         run: |
           kubectl -n minio delete secret minio-root --ignore-not-found
@@ -40,22 +43,23 @@ jobs:
         run: |
           kubectl apply -f k8s/minio/namespace.yaml
           kubectl apply -f k8s/minio/pvc.yaml
+          # Принудительно прошьём нужный образ в деплой (если поменяется в файле — перезапишем):
           kubectl apply -f k8s/minio/deploy.yaml
+          kubectl -n minio set image deploy/minio minio="$MINIO_IMAGE" --record
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
 
       - name: ⏳ Wait rollout
-        run: kubectl -n minio rollout status deploy/minio --timeout=300s
-
-      - name: 🔎 Show svc/ingress
+        shell: bash
         run: |
-          kubectl -n minio get pods -o wide
-          kubectl -n minio get svc minio -o wide
-          kubectl -n minio get ingress minio-ingress -o wide
+          set -euo pipefail
+          kubectl -n minio rollout status deploy/minio --timeout=300s
 
-      - name: 🔐 Wait certificate
+      - name: 🔎 Smoke check (best effort)
+        shell: bash
         continue-on-error: true
         run: |
-          kubectl -n minio wait --for=condition=Ready certificate/minio-tls --timeout=10m || true
-          kubectl -n minio get certificate
-          kubectl -n minio get order,challenge -o wide || true
+          echo "Health (ready):"
+          curl -fsS --max-time 10 https://minio.pufferfish.ru/minio/health/ready || true
+          echo "Health (live):"
+          curl -fsS --max-time 10 https://minio.pufferfish.ru/minio/health/live || true

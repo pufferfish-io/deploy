@@ -7,12 +7,10 @@ metadata:
     app: minio
 spec:
   type: ClusterIP
-  selector:
-    app: minio
   ports:
     - name: api
       port: 9000
-      targetPort: api
-    - name: console
-      port: 9001
-      targetPort: console
+      targetPort: 9000
+      protocol: TCP
+  selector:
+    app: minio
