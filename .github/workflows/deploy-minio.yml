@@ -1,70 +1,40 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
-
 on:
   workflow_dispatch:
   push:
     paths:
       - "k8s/minio/**"
 
-env:
-  # Kubernetes context
-  KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-  # CPU v1 image — подтверждённая рабочая
-  MINIO_IMAGE: quay.io/minio/minio:RELEASE.2021-04-22T15-44-28Z
-
-  # Secrets (repo > org)
-  MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
-  MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-  S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-  S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-
 jobs:
   deploy-minio:
     runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
 
     steps:
-      # ----------------------
-      # ✅ 1. Checkout
-      # ----------------------
-      - name: 📥 Checkout repository
+      - name: 🧾 Checkout repo
         uses: actions/checkout@v4
 
-      # ----------------------
-      # ✅ 2. Validate secrets
-      # ----------------------
-      - name: 🔎 Check required secrets
+      - name: ✅ Check secrets
         run: |
-          echo "Checking MINIO secrets..."
-          for v in MINIO_ROOT_USER MINIO_ROOT_PASSWORD; do
-            if [ -z "${!v}" ]; then
-               echo "❌ Secret $v is empty. Set it in repo or org secrets."
-               exit 1
-            fi
-          done
-          echo "✅ Secrets OK"
+          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || {
+            echo "❌ Set MINIO_ROOT_USER / MINIO_ROOT_PASSWORD secrets";
+            exit 1;
+          }
 
-      # ----------------------
-      # ✅ 3. Create namespace
-      # ----------------------
-      - name: 📦 Ensure namespace exists
+      - name: 🛠 Ensure namespace
         run: |
           kubectl get ns minio || kubectl create ns minio
 
-      # ----------------------
-      # ✅ 4. Kubernetes secret (root credentials)
-      # ----------------------
-      - name: 🔐 Apply Kubernetes secret
+      - name: 🔐 Apply root credentials secret
         run: |
           kubectl -n minio delete secret minio-root --ignore-not-found
           kubectl -n minio create secret generic minio-root \
             --from-literal=MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             --from-literal=MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD"
 
-      # ----------------------
-      # ✅ 5. Apply manifests
-      # ----------------------
-      - name: 📜 Apply manifests
+      - name: 📦 Apply manifests
         run: |
           kubectl apply -f k8s/minio/namespace.yaml
           kubectl apply -f k8s/minio/pvc.yaml
@@ -72,9 +42,10 @@ jobs:
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
 
-      # ----------------------
-      # ✅ 6. Wait for rollout
-      # ----------------------
       - name: ⏳ Wait for rollout
         run: |
           kubectl -n minio rollout status deploy/minio --timeout=300s
+
+      - name: ✅ Check pods
+        run: |
+          kubectl -n minio get pods -o wide
