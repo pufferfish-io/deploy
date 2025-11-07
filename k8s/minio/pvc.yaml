@@ -4,8 +4,7 @@ metadata:
   name: minio-data
   namespace: minio
 spec:
-  accessModes:
-    - ReadWriteOnce
+  accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
   resources:
     requests:

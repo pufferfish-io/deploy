@@ -8,8 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts:
-        - minio.pufferfish.ru
+    - hosts: [ "minio.pufferfish.ru" ]
       secretName: minio-tls
   rules:
     - host: minio.pufferfish.ru
