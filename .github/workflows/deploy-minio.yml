@@ -1,11 +1,7 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
 
 on:
-  workflow_dispatch:  # только вручную
-
-permissions:
-  contents: read
-  id-token: write     # (норм ок оставить; secrets здесь НЕ указываются)
+  workflow_dispatch:
 
 jobs:
   deploy-minio:
@@ -13,24 +9,26 @@ jobs:
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
-      # GitHub сам подставит: репозиторные секреты имеют приоритет над организационными
+      # эти два секрета должны быть заданы в Org/Repo (MINIO_ROOT_USER / MINIO_ROOT_PASSWORD)
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: 🧾 Checkout
+        uses: actions/checkout@v4
 
       - name: ✅ Check secrets
         shell: bash
         run: |
-          set -euo pipefail
-          test -n "${MINIO_ROOT_USER:-}" || { echo "❌ MINIO_ROOT_USER missing"; exit 1; }
-          test -n "${MINIO_ROOT_PASSWORD:-}" || { echo "❌ MINIO_ROOT_PASSWORD missing"; exit 1; }
-          echo "✅ Secrets are available"
+          set -e
+          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || { echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"; exit 1; }
+          echo "OK: secrets present"
 
       - name: 🛠 Ensure namespace
-        run: kubectl get ns minio >/dev/null 2>&1 || kubectl create ns minio
+        run: kubectl get ns minio || kubectl create ns minio
 
-      - name: 🔐 Create secret
+      - name: 🔐 Create/Update admin secret
+        shell: bash
         run: |
           kubectl -n minio delete secret minio-root --ignore-not-found
           kubectl -n minio create secret generic minio-root \
@@ -38,6 +36,7 @@ jobs:
             --from-literal=MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD"
 
       - name: 📦 Apply manifests
+        shell: bash
         run: |
           kubectl apply -f k8s/minio/namespace.yaml
           kubectl apply -f k8s/minio/pvc.yaml
@@ -45,13 +44,18 @@ jobs:
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
 
-      - name: ⏳ Wait rollout (with debug on failure)
-        shell: bash
+      - name: ⏳ Wait rollout
+        run: kubectl -n minio rollout status deploy/minio --timeout=300s
+
+      - name: 🔎 Show svc/ingress
         run: |
-          set -e
-          if ! kubectl -n minio rollout status deploy/minio --timeout=300s; then
-            echo "---- pods";        kubectl -n minio get pods -o wide || true
-            echo "---- describe";    kubectl -n minio describe deploy/minio || true
-            echo "---- logs";        kubectl -n minio logs deploy/minio --tail=200 || true
-            exit 1
-          fi
+          kubectl -n minio get pods -o wide
+          kubectl -n minio get svc minio -o wide
+          kubectl -n minio get ingress minio-ingress -o wide
+
+      - name: 🔐 Wait certificate
+        continue-on-error: true
+        run: |
+          kubectl -n minio wait --for=condition=Ready certificate/minio-tls --timeout=10m || true
+          kubectl -n minio get certificate
+          kubectl -n minio get order,challenge -o wide || true
