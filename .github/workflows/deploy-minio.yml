@@ -1,7 +1,7 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # ← ТОЛЬКО ручной запуск
 
 permissions:
   contents: read
@@ -17,39 +17,29 @@ jobs:
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
     steps:
-      - name: 🧾 Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: ✅ Check secrets
         shell: bash
         run: |
-          set -e
           if [ -z "${MINIO_ROOT_USER:-}" ] || [ -z "${MINIO_ROOT_PASSWORD:-}" ]; then
             echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"; exit 1
           fi
           echo "✅ Secrets OK"
-
       - name: 🛠 Ensure namespace
-        shell: bash
         run: kubectl get ns minio >/dev/null 2>&1 || kubectl create ns minio
-
       - name: 🔐 Create secret
-        shell: bash
         run: |
           kubectl -n minio delete secret minio-root --ignore-not-found
           kubectl -n minio create secret generic minio-root \
             --from-literal=MINIO_ROOT_USER="$MINIO_ROOT_USER" \
             --from-literal=MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD"
-
       - name: 📦 Apply manifests
-        shell: bash
         run: |
           kubectl apply -f k8s/minio/namespace.yaml
           kubectl apply -f k8s/minio/pvc.yaml
           kubectl apply -f k8s/minio/deploy.yaml
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
-
       - name: ⏳ Wait rollout (with debug)
         shell: bash
         run: |
