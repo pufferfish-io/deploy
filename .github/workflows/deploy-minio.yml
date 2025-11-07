@@ -1,33 +1,40 @@
 name: "🚀 Deploy MinIO (cpuv1) + TLS"
+
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "k8s/minio/**"
+
+permissions:
+  contents: read
+  id-token: write
+  secrets: read    # ✅ ОБЯЗАТЕЛЬНО, иначе орг-секреты НЕ ПРИХОДЯТ
 
 jobs:
   deploy-minio:
     runs-on: self-hosted
+
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
+      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
 
     steps:
-      - name: 🧾 Checkout repo
+      - name: 🧾 Checkout
         uses: actions/checkout@v4
 
       - name: ✅ Check secrets
         run: |
-          test -n "$MINIO_ROOT_USER" -a -n "$MINIO_ROOT_PASSWORD" || {
-            echo "❌ Set MINIO_ROOT_USER / MINIO_ROOT_PASSWORD secrets";
-            exit 1;
-          }
+          if [ -z "$MINIO_ROOT_USER" ] || [ -z "$MINIO_ROOT_PASSWORD" ]; then
+            echo "❌ MINIO_ROOT_USER / MINIO_ROOT_PASSWORD missing"
+            env | grep MINIO || true
+            exit 1
+          fi
+          echo "✅ Secrets OK"
 
       - name: 🛠 Ensure namespace
-        run: |
-          kubectl get ns minio || kubectl create ns minio
+        run: kubectl get ns minio || kubectl create ns minio
 
-      - name: 🔐 Apply root credentials secret
+      - name: 🔐 Create secret
         run: |
           kubectl -n minio delete secret minio-root --ignore-not-found
           kubectl -n minio create secret generic minio-root \
@@ -42,10 +49,6 @@ jobs:
           kubectl apply -f k8s/minio/svc.yaml
           kubectl apply -f k8s/minio/ingress.yaml
 
-      - name: ⏳ Wait for rollout
+      - name: ⏳ Wait rollout
         run: |
           kubectl -n minio rollout status deploy/minio --timeout=300s
-
-      - name: ✅ Check pods
-        run: |
-          kubectl -n minio get pods -o wide
