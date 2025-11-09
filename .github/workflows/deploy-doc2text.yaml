@@ -12,7 +12,6 @@ jobs:
   deploy:
     name: 🔄 Deploy via kubectl
     runs-on: self-hosted
-    timeout-minutes: 15
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -23,35 +22,9 @@ jobs:
 
       - name: 🔧 Ensure namespace
         run: |
-          kubectl get ns app || kubectl create ns app
+          kubectl get ns app >/dev/null 2>&1 || kubectl create ns app
 
-      - name: 🧪 Preflight cluster info
-        run: |
-          set -euo pipefail
-          # Older kubectl in k3s may not support --short
-          kubectl version || true
-          kubectl cluster-info
-          kubectl get nodes -o wide
-          kubectl -n app get deploy,po,svc -o wide || true
-
-      - name: 🔑 Ensure GHCR imagePullSecret (optional)
-        env:
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
-            echo "Ensuring ghcr-secret in namespace app"
-            kubectl -n app create secret docker-registry ghcr-secret \
-              --docker-server=ghcr.io \
-              --docker-username="${GHCR_USERNAME}" \
-              --docker-password="${GHCR_TOKEN}" \
-              --dry-run=client -o yaml | kubectl apply -f -
-          else
-            echo "GHCR_USERNAME/GHCR_TOKEN not set; skipping imagePullSecret creation"
-          fi
-
-      - name: 🔐 Apply/update env Secret
+      - name: 🔐 Apply/update env secret
         env:
           G_RPC_ADDR: ${{ vars.G_RPC_SERVER_DOC2TEXT_ADDR }}
           HTTP_ADDR: ${{ vars.HTTP_SERVER_DOC2TEXT_ADDR }}
@@ -76,36 +49,27 @@ jobs:
           OIDC_AUDIENCE: ${{ vars.OIDC_DOC2TEXT_AUDIENCE }}
           OIDC_EXPECTED_AZP: ${{ vars.OIDC_DOC2TEXT_EXPECTED_AZP }}
         run: |
-          set -euo pipefail
-          # Recreate secret to avoid stale keys (e.g., old OIDC_* left over)
-          kubectl -n app delete secret doc2text-env --ignore-not-found
-          args=(
-            --from-literal=G_RPC_SERVER_DOC2TEXT_ADDR="${G_RPC_ADDR:-:50052}"
-            --from-literal=HTTP_SERVER_DOC2TEXT_ADDR="${HTTP_ADDR:-:8086}"
-
-            --from-literal=YC_API_KEY="${YC_API_KEY}"
-            --from-literal=YC_FOLDER_ID="${YC_FOLDER_ID}"
-            --from-literal=YC_ENDPOINT="${YC_ENDPOINT:-https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze}"
-            --from-literal=YC_DEFAULT_MODEL="${YC_DEFAULT_MODEL:-page}"
-            --from-literal=YC_MIN_CONFIDENCE="${YC_MIN_CONFIDENCE:-0.6}"
-            --from-literal=YC_HTTP_TIMEOUT="${YC_HTTP_TIMEOUT:-15s}"
-            --from-literal=YC_LANGUAGES="${YC_LANGUAGES:-ru,en}"
-
-            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}"
-            --from-literal=S3_ACCESS_KEY="${S3_ACCESS_KEY}"
-            --from-literal=S3_SECRET_KEY="${S3_SECRET_KEY}"
-            --from-literal=S3_BUCKET="${S3_BUCKET}"
-            --from-literal=S3_USE_SSL="${S3_USE_SSL:-false}"
-          )
-          # Optional values only if non-empty
-          [[ -n "${YC_IAM_TOKEN:-}" ]] && args+=(--from-literal=YC_IAM_TOKEN="${YC_IAM_TOKEN}")
-          if [[ -n "${OIDC_ISSUER:-}" || -n "${OIDC_JWKS_URL:-}" || -n "${OIDC_AUDIENCE:-}" || -n "${OIDC_EXPECTED_AZP:-}" ]]; then
-            [[ -n "${OIDC_ISSUER:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_ISSUER="${OIDC_ISSUER}")
-            [[ -n "${OIDC_JWKS_URL:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_JWKS_URL="${OIDC_JWKS_URL}")
-            [[ -n "${OIDC_AUDIENCE:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_AUDIENCE="${OIDC_AUDIENCE}")
-            [[ -n "${OIDC_EXPECTED_AZP:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_EXPECTED_AZP="${OIDC_EXPECTED_AZP}")
-          fi
-          kubectl -n app create secret generic doc2text-env "${args[@]}"
+          kubectl -n app create secret generic doc2text-env \
+            --from-literal=G_RPC_SERVER_DOC2TEXT_ADDR="${G_RPC_ADDR:-:50052}" \
+            --from-literal=HTTP_SERVER_DOC2TEXT_ADDR="${HTTP_ADDR:-:8086}" \
+            --from-literal=YC_API_KEY="${YC_API_KEY}" \
+            --from-literal=YC_IAM_TOKEN="${YC_IAM_TOKEN}" \
+            --from-literal=YC_FOLDER_ID="${YC_FOLDER_ID}" \
+            --from-literal=YC_ENDPOINT="${YC_ENDPOINT:-https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze}" \
+            --from-literal=YC_DEFAULT_MODEL="${YC_DEFAULT_MODEL:-page}" \
+            --from-literal=YC_MIN_CONFIDENCE="${YC_MIN_CONFIDENCE:-0.6}" \
+            --from-literal=YC_HTTP_TIMEOUT="${YC_HTTP_TIMEOUT:-15s}" \
+            --from-literal=YC_LANGUAGES="${YC_LANGUAGES:-ru,en}" \
+            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}" \
+            --from-literal=S3_ACCESS_KEY="${S3_ACCESS_KEY}" \
+            --from-literal=S3_SECRET_KEY="${S3_SECRET_KEY}" \
+            --from-literal=S3_BUCKET="${S3_BUCKET}" \
+            --from-literal=S3_USE_SSL="${S3_USE_SSL:-false}" \
+            --from-literal=OIDC_DOC2TEXT_ISSUER="${OIDC_ISSUER}" \
+            --from-literal=OIDC_DOC2TEXT_JWKS_URL="${OIDC_JWKS_URL}" \
+            --from-literal=OIDC_DOC2TEXT_AUDIENCE="${OIDC_AUDIENCE}" \
+            --from-literal=OIDC_DOC2TEXT_EXPECTED_AZP="${OIDC_EXPECTED_AZP}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
         run: |
@@ -121,112 +85,13 @@ jobs:
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/doc2text doc2text=${IMAGE}
 
-      - name: 🔁 Restart deployment when tag is latest
-        env:
-          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
-        run: |
-          TAG=${IMAGE_TAG:-latest}
-          if [ "$TAG" = "latest" ]; then
-            echo "Forcing rollout restart due to 'latest' tag"
-            kubectl -n app rollout restart deployment/doc2text
-          fi
-
-      - name: 🔎 Rollout status (with heartbeat)
+      - name: 🔎 Rollout status
         run: |
           set -e
-          (
-            while true; do
-              echo "--- Heartbeat $(date -u +%H:%M:%SZ) ---"
-              kubectl -n app get deploy/doc2text || true
-              kubectl -n app get rs -o wide | sed -n '1,10p' || true
-              kubectl -n app get pods -l app=doc2text -o wide || true
-              sleep 10
-            done
-          ) &
-          HB=$!
-          kubectl -n app rollout status deployment/doc2text --timeout=180s || STATUS=$?
-          kill $HB >/dev/null 2>&1 || true
-          if [[ -n "${STATUS:-}" ]]; then
-            echo "Rollout status returned non-zero: $STATUS"
-            exit "$STATUS"
-          fi
+          kubectl -n app rollout status deployment/doc2text --timeout=180s
           kubectl -n app get pods -o wide
 
       - name: 📝 Recent logs (best effort)
-        if: always()
         continue-on-error: true
         run: |
           kubectl -n app logs deploy/doc2text --tail=200 || true
-
-      - name: 🩺 Diagnostics (always)
-        if: always()
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          echo "---- Describe deployment ----"
-          kubectl -n app describe deploy/doc2text || true
-          echo "---- ReplicaSets ----"
-          kubectl -n app get rs -o wide || true
-          echo "---- Pods (label app=doc2text) ----"
-          kubectl -n app get pods -l app=doc2text -o wide || true
-          echo "---- Describe pods ----"
-          for p in $(kubectl -n app get pods -l app=doc2text -o name 2>/dev/null); do
-            echo "==== $p ===="
-            kubectl -n app describe "$p" || true
-          done
-          echo "---- Pod logs (previous) ----"
-          for p in $(kubectl -n app get pods -l app=doc2text -o name 2>/dev/null); do
-            echo "==== $p (previous) ===="
-            kubectl -n app logs "$p" -p --tail=200 || true
-          done
-          echo "---- Events (last 200) ----"
-          kubectl -n app get events --sort-by=.lastTimestamp 2>/dev/null | tail -n 200 || true
-      - name: ✅ Validate required inputs
-        env:
-          # Required repo variables
-          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          # Optional but recommended
-          S3_USE_SSL: ${{ vars.S3_USE_SSL }}
-          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
-          # Required secrets
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          # Yandex OCR: require at least one
-          YC_API_KEY: ${{ secrets.YC_API_KEY }}
-          YC_IAM_TOKEN: ${{ secrets.YC_IAM_TOKEN }}
-          # OIDC optional: if any provided, validate all required
-          OIDC_ISSUER: ${{ vars.OIDC_DOC2TEXT_ISSUER }}
-          OIDC_JWKS_URL: ${{ vars.OIDC_DOC2TEXT_JWKS_URL }}
-          OIDC_AUDIENCE: ${{ vars.OIDC_DOC2TEXT_AUDIENCE }}
-          OIDC_EXPECTED_AZP: ${{ vars.OIDC_DOC2TEXT_EXPECTED_AZP }}
-        run: |
-          set -euo pipefail
-          missing=()
-          # S3 must-haves
-          [[ -z "${S3_ENDPOINT:-}" ]] && missing+=("vars.S3_ENDPOINT")
-          [[ -z "${S3_BUCKET:-}" ]] && missing+=("vars.S3_BUCKET")
-          [[ -z "${S3_ACCESS_KEY:-}" ]] && missing+=("secrets.S3_ACCESS_KEY")
-          [[ -z "${S3_SECRET_KEY:-}" ]] && missing+=("secrets.S3_SECRET_KEY")
-
-          # Yandex OCR: at least one credential
-          if [[ -z "${YC_API_KEY:-}" && -z "${YC_IAM_TOKEN:-}" ]]; then
-            missing+=("secrets.YC_API_KEY|secrets.YC_IAM_TOKEN (one is required)")
-          fi
-
-          # OIDC: if any provided, require the rest and basic URL sanity
-          if [[ -n "${OIDC_ISSUER:-}" || -n "${OIDC_JWKS_URL:-}" || -n "${OIDC_AUDIENCE:-}" || -n "${OIDC_EXPECTED_AZP:-}" ]]; then
-            [[ -z "${OIDC_ISSUER:-}" ]] && missing+=("vars.OIDC_DOC2TEXT_ISSUER")
-            [[ -z "${OIDC_JWKS_URL:-}" ]] && missing+=("vars.OIDC_DOC2TEXT_JWKS_URL")
-            [[ -z "${OIDC_AUDIENCE:-}" ]] && missing+=("vars.OIDC_DOC2TEXT_AUDIENCE")
-            if [[ -n "${OIDC_JWKS_URL:-}" ]] && ! echo "${OIDC_JWKS_URL}" | grep -Eqi '^https?://'; then
-              missing+=("vars.OIDC_DOC2TEXT_JWKS_URL (must be http/https URL)")
-            fi
-          fi
-
-          if (( ${#missing[@]} > 0 )); then
-            echo "❌ Missing/invalid required inputs:" >&2
-            for k in "${missing[@]}"; do echo " - $k" >&2; done
-            exit 1
-          fi
-          echo "✅ Inputs OK (values not printed)"
