@@ -1,3 +1,3 @@
 # Ignore local generated docs
-_docs/
-
+.docs
+.log
