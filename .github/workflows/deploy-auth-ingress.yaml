@@ -52,7 +52,7 @@ jobs:
                 storage: 5Gi
           EOF
 
-      - name: "📦 Apply official Keycloak (start-dev)"
+      - name: "📦 Apply official Keycloak (production mode)"
         run: |
           set -euo pipefail
           cat <<EOF | kubectl -n auth apply -f -
@@ -78,7 +78,7 @@ jobs:
                   - name: keycloak
                     image: ${KC_IMAGE}
                     imagePullPolicy: IfNotPresent
-                    args: ["start-dev"]
+                    args: ["start"]
                     env:
                       - name: KEYCLOAK_ADMIN
                         valueFrom: { secretKeyRef: { name: kc-admin, key: username } }
@@ -87,6 +87,8 @@ jobs:
                       - { name: KC_PROXY, value: edge }
                       - { name: KC_HOSTNAME, value: ${KC_HOST} }
                       - { name: KC_HEALTH_ENABLED, value: "true" }
+                      - name: KC_DB
+                        value: h2
                       # Keep memory low for 1Gi node; compatible with 768Mi limit
                       - { name: JAVA_OPTS_APPEND, value: "-Xms256m -Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m" }
                     ports: [{ containerPort: 8080, name: http }]
