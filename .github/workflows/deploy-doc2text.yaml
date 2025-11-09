@@ -129,10 +129,25 @@ jobs:
             kubectl -n app rollout restart deployment/doc2text
           fi
 
-      - name: 🔎 Rollout status
+      - name: 🔎 Rollout status (with heartbeat)
         run: |
           set -e
-          kubectl -n app rollout status deployment/doc2text --timeout=180s
+          (
+            while true; do
+              echo "--- Heartbeat $(date -u +%H:%M:%SZ) ---"
+              kubectl -n app get deploy/doc2text || true
+              kubectl -n app get rs -o wide | sed -n '1,10p' || true
+              kubectl -n app get pods -l app=doc2text -o wide || true
+              sleep 10
+            done
+          ) &
+          HB=$!
+          kubectl -n app rollout status deployment/doc2text --timeout=180s || STATUS=$?
+          kill $HB >/dev/null 2>&1 || true
+          if [[ -n "${STATUS:-}" ]]; then
+            echo "Rollout status returned non-zero: $STATUS"
+            exit "$STATUS"
+          fi
           kubectl -n app get pods -o wide
 
       - name: 📝 Recent logs (best effort)
