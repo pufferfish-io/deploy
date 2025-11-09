@@ -28,7 +28,8 @@ jobs:
       - name: 🧪 Preflight cluster info
         run: |
           set -euo pipefail
-          kubectl version --short
+          # Older kubectl in k3s may not support --short
+          kubectl version || true
           kubectl cluster-info
           kubectl get nodes -o wide
           kubectl -n app get deploy,po,svc -o wide || true
@@ -75,30 +76,34 @@ jobs:
           OIDC_AUDIENCE: ${{ vars.OIDC_DOC2TEXT_AUDIENCE }}
           OIDC_EXPECTED_AZP: ${{ vars.OIDC_DOC2TEXT_EXPECTED_AZP }}
         run: |
-          kubectl -n app create secret generic doc2text-env \
-            --from-literal=G_RPC_SERVER_DOC2TEXT_ADDR="${G_RPC_ADDR:-:50052}" \
-            --from-literal=HTTP_SERVER_DOC2TEXT_ADDR="${HTTP_ADDR:-:8086}" \
-            \
-            --from-literal=YC_API_KEY="${YC_API_KEY}" \
-            --from-literal=YC_IAM_TOKEN="${YC_IAM_TOKEN}" \
-            --from-literal=YC_FOLDER_ID="${YC_FOLDER_ID}" \
-            --from-literal=YC_ENDPOINT="${YC_ENDPOINT:-https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze}" \
-            --from-literal=YC_DEFAULT_MODEL="${YC_DEFAULT_MODEL:-page}" \
-            --from-literal=YC_MIN_CONFIDENCE="${YC_MIN_CONFIDENCE:-0.6}" \
-            --from-literal=YC_HTTP_TIMEOUT="${YC_HTTP_TIMEOUT:-15s}" \
-            --from-literal=YC_LANGUAGES="${YC_LANGUAGES:-ru,en}" \
-            \
-            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}" \
-            --from-literal=S3_ACCESS_KEY="${S3_ACCESS_KEY}" \
-            --from-literal=S3_SECRET_KEY="${S3_SECRET_KEY}" \
-            --from-literal=S3_BUCKET="${S3_BUCKET}" \
-            --from-literal=S3_USE_SSL="${S3_USE_SSL:-false}" \
-            \
-            --from-literal=OIDC_DOC2TEXT_ISSUER="${OIDC_ISSUER}" \
-            --from-literal=OIDC_DOC2TEXT_JWKS_URL="${OIDC_JWKS_URL}" \
-            --from-literal=OIDC_DOC2TEXT_AUDIENCE="${OIDC_AUDIENCE}" \
-            --from-literal=OIDC_DOC2TEXT_EXPECTED_AZP="${OIDC_EXPECTED_AZP}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+          set -euo pipefail
+          args=(
+            --from-literal=G_RPC_SERVER_DOC2TEXT_ADDR="${G_RPC_ADDR:-:50052}"
+            --from-literal=HTTP_SERVER_DOC2TEXT_ADDR="${HTTP_ADDR:-:8086}"
+
+            --from-literal=YC_API_KEY="${YC_API_KEY}"
+            --from-literal=YC_FOLDER_ID="${YC_FOLDER_ID}"
+            --from-literal=YC_ENDPOINT="${YC_ENDPOINT:-https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze}"
+            --from-literal=YC_DEFAULT_MODEL="${YC_DEFAULT_MODEL:-page}"
+            --from-literal=YC_MIN_CONFIDENCE="${YC_MIN_CONFIDENCE:-0.6}"
+            --from-literal=YC_HTTP_TIMEOUT="${YC_HTTP_TIMEOUT:-15s}"
+            --from-literal=YC_LANGUAGES="${YC_LANGUAGES:-ru,en}"
+
+            --from-literal=S3_ENDPOINT="${S3_ENDPOINT}"
+            --from-literal=S3_ACCESS_KEY="${S3_ACCESS_KEY}"
+            --from-literal=S3_SECRET_KEY="${S3_SECRET_KEY}"
+            --from-literal=S3_BUCKET="${S3_BUCKET}"
+            --from-literal=S3_USE_SSL="${S3_USE_SSL:-false}"
+          )
+          # Optional values only if non-empty
+          [[ -n "${YC_IAM_TOKEN:-}" ]] && args+=(--from-literal=YC_IAM_TOKEN="${YC_IAM_TOKEN}")
+          if [[ -n "${OIDC_ISSUER:-}" || -n "${OIDC_JWKS_URL:-}" || -n "${OIDC_AUDIENCE:-}" || -n "${OIDC_EXPECTED_AZP:-}" ]]; then
+            [[ -n "${OIDC_ISSUER:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_ISSUER="${OIDC_ISSUER}")
+            [[ -n "${OIDC_JWKS_URL:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_JWKS_URL="${OIDC_JWKS_URL}")
+            [[ -n "${OIDC_AUDIENCE:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_AUDIENCE="${OIDC_AUDIENCE}")
+            [[ -n "${OIDC_EXPECTED_AZP:-}" ]] && args+=(--from-literal=OIDC_DOC2TEXT_EXPECTED_AZP="${OIDC_EXPECTED_AZP}")
+          fi
+          kubectl -n app create secret generic doc2text-env "${args[@]}" --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
         run: |
@@ -154,3 +159,34 @@ jobs:
           done
           echo "---- Events (last 200) ----"
           kubectl -n app get events --sort-by=.lastTimestamp 2>/dev/null | tail -n 200 || true
+      - name: ✅ Validate required inputs
+        env:
+          REQ_VARS: |
+            vars.S3_ENDPOINT=${{ vars.S3_ENDPOINT }}
+            vars.S3_BUCKET=${{ vars.S3_BUCKET }}
+          REQ_SECRETS: |
+            secrets.S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}
+            secrets.S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
+            secrets.YC_API_KEY=${{ secrets.YC_API_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          while IFS='=' read -r k v; do
+            [[ -z "$k" ]] && continue
+            if [[ -z "${v}" ]]; then
+              missing+=("$k")
+            fi
+          done <<<"${REQ_VARS}"
+          while IFS='=' read -r k v; do
+            [[ -z "$k" ]] && continue
+            if [[ -z "${v}" ]]; then
+              missing+=("$k")
+            fi
+          done <<<"${REQ_SECRETS}"
+          if (( ${#missing[@]} > 0 )); then
+            echo "❌ Missing required repository variables/secrets:" >&2
+            printf ' - %s\n' "${missing[@]}" >&2
+            echo "Please set them in repo settings and re-run." >&2
+            exit 1
+          fi
+          echo "✅ Required inputs present"
