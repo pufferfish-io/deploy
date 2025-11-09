@@ -84,6 +84,10 @@ jobs:
           IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/doc2text doc2text=${IMAGE}
+      - name: 🔍 Deployed image info
+        run: |
+          kubectl -n app get deployment doc2text -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/^/Image in pod template: /'
+          kubectl -n app get deploy doc2text -o jsonpath='{.status.conditions[?(@.type=="Progressing")].message}' || true
 
       - name: 🔎 Rollout status
         run: |
