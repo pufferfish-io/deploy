@@ -65,6 +65,14 @@ jobs:
           IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/message-responder-ocr message-responder-ocr=${IMAGE}
+      - name: 🔁 Roll latest image restart
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          if [ "$TAG" = "latest" ]; then
+            kubectl -n app rollout restart deployment/message-responder-ocr
+          fi
 
       - name: 🔎 Rollout status
         run: |
