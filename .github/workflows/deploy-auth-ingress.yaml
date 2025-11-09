@@ -78,7 +78,7 @@ jobs:
                   - name: keycloak
                     image: ${KC_IMAGE}
                     imagePullPolicy: IfNotPresent
-                    args: ["start"]
+                    args: ["start-dev"]
                     env:
                       - name: KEYCLOAK_ADMIN
                         valueFrom: { secretKeyRef: { name: kc-admin, key: username } }
