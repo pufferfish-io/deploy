@@ -12,6 +12,7 @@ jobs:
   deploy:
     name: 🔄 Deploy via kubectl
     runs-on: self-hosted
+    timeout-minutes: 15
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -23,6 +24,31 @@ jobs:
       - name: 🔧 Ensure namespace
         run: |
           kubectl get ns app || kubectl create ns app
+
+      - name: 🧪 Preflight cluster info
+        run: |
+          set -euo pipefail
+          kubectl version --short
+          kubectl cluster-info
+          kubectl get nodes -o wide
+          kubectl -n app get deploy,po,svc -o wide || true
+
+      - name: 🔑 Ensure GHCR imagePullSecret (optional)
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
+            echo "Ensuring ghcr-secret in namespace app"
+            kubectl -n app create secret docker-registry ghcr-secret \
+              --docker-server=ghcr.io \
+              --docker-username="${GHCR_USERNAME}" \
+              --docker-password="${GHCR_TOKEN}" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          else
+            echo "GHCR_USERNAME/GHCR_TOKEN not set; skipping imagePullSecret creation"
+          fi
 
       - name: 🔐 Apply/update env Secret
         env:
@@ -88,6 +114,16 @@ jobs:
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/doc2text doc2text=${IMAGE}
 
+      - name: 🔁 Restart deployment when tag is latest
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          TAG=${IMAGE_TAG:-latest}
+          if [ "$TAG" = "latest" ]; then
+            echo "Forcing rollout restart due to 'latest' tag"
+            kubectl -n app rollout restart deployment/doc2text
+          fi
+
       - name: 🔎 Rollout status
         run: |
           set -e
@@ -95,6 +131,26 @@ jobs:
           kubectl -n app get pods -o wide
 
       - name: 📝 Recent logs (best effort)
+        if: always()
         continue-on-error: true
         run: |
-          kubectl -n app logs deploy/doc2text --tail=200
+          kubectl -n app logs deploy/doc2text --tail=200 || true
+
+      - name: 🩺 Diagnostics (always)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          echo "---- Describe deployment ----"
+          kubectl -n app describe deploy/doc2text || true
+          echo "---- ReplicaSets ----"
+          kubectl -n app get rs -o wide || true
+          echo "---- Pods (label app=doc2text) ----"
+          kubectl -n app get pods -l app=doc2text -o wide || true
+          echo "---- Describe pods ----"
+          for p in $(kubectl -n app get pods -l app=doc2text -o name 2>/dev/null); do
+            echo "==== $p ===="
+            kubectl -n app describe "$p" || true
+          done
+          echo "---- Events (last 200) ----"
+          kubectl -n app get events --sort-by=.lastTimestamp 2>/dev/null | tail -n 200 || true

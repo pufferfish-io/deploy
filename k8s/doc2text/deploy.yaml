@@ -25,7 +25,7 @@ spec:
       containers:
         - name: doc2text
           image: ghcr.io/pufferfish-io/doc2text:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8086
