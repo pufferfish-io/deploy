@@ -12,7 +12,7 @@ jobs:
   deploy:
     name: 🔄 Deploy via kubectl
     runs-on: self-hosted
-    # environment: prod   # ← если org/env-секреты привязаны к Environment, раскомментируй и укажи имя
+    # environment: prod   # ← раскомментируй, если секреты привязаны к Environment
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -22,8 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🔧 Ensure namespace
-        run: |
-          kubectl get ns app || kubectl create ns app
+        run: kubectl get ns app || kubectl create ns app
 
       - name: ✅ Validate required inputs
         env:
@@ -86,10 +85,9 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: 📤 Apply manifests
-        run: |
-          kubectl -n app apply -f k8s/message-responder-ocr/deploy.yaml
+        run: kubectl -n app apply -f k8s/message-responder-ocr/deploy.yaml
 
-      # ---------- СРАВНЕНИЕ: job → secret → pod (ВСЁ в открытую) ----------
+      # ---------- ПЕЧАТАЕМ ВСЁ (JOB → SECRET → POD) ----------
       - name: 🧪 RAW job env dump (что передал GitHub)
         env:
           KEYS: >-
@@ -131,19 +129,18 @@ jobs:
             | sed 's/^/SECRET: /'
 
       - name: 🧩 Deployment env wiring (snippet)
-        run: |
-          kubectl -n app get deploy message-responder-ocr -o yaml | sed -n '/containers:/,/imagePullPolicy:/p'
+        run: kubectl -n app get deploy message-responder-ocr -o yaml | sed -n '/containers:/,/imagePullPolicy:/p'
 
       - name: 🧬 RAW pod env dump (что видит приложение)
         run: |
-          POD=$(kubectl -n app get pods -l app=message-responder-ocr -o jsonpath='{range .items[?(@.status.phase=="Running")]}{.metadata.name}{"\n"}{end}' | head -n1)
-          if [ -z "$POD" ]; then
-            POD=$(kubectl -n app get pods -l app=message-responder-ocr -o jsonpath='{.items[0].metadata.name}')
-          fi
-          CONTAINER=$(kubectl -n app get pod "$POD" -o jsonpath='{.spec.containers[0].name}')
-          echo "Pod=$POD  Container=$CONTAINER"
-          kubectl -n app exec -c "$CONTAINER" "$POD" -- sh -lc 'printenv | egrep "^(KAFKA|SASL|SECURITY|DOC3TEXT|OIDC)_" | sort | sed "s/^/POD: /"'
-      # -------------------------------------------------------------------
+          set -e
+          kubectl -n app rollout status deploy/message-responder-ocr --timeout=180s
+          kubectl -n app wait --for=condition=Ready pod -l app=message-responder-ocr --timeout=120s
+          POD=$(kubectl -n app get pods -l app=message-responder-ocr -o jsonpath='{.items[0].metadata.name}')
+          echo "Pod=$POD"
+          # НЕ указываем -c, чтобы не ловить 'container not found'
+          kubectl -n app exec "$POD" -- sh -lc 'printenv | egrep "^(KAFKA|SASL|SECURITY|DOC3TEXT|OIDC)_" | sort | sed "s/^/POD: /"'
+      # ------------------------------------------------------
 
       - name: 🖼 Update image tag
         env:
@@ -172,5 +169,4 @@ jobs:
 
       - name: 📝 Recent logs (best effort)
         continue-on-error: true
-        run: |
-          kubectl -n app logs deploy/message-responder-ocr --tail=200
+        run: kubectl -n app logs deploy/message-responder-ocr --tail=200
