@@ -37,10 +37,12 @@ jobs:
           DOC3TEXT_CLIENT_ID: ${{ vars.DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR }}
           DOC3TEXT_CLIENT_SECRET: ${{ secrets.DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR }}
           DOC3TEXT_G_RPC_URL: ${{ vars.DOC3TEXT_G_RPC_URL }}
+          SECURITY_PROTOCOL: ${{ vars.KAFKA_SECURITY_PROTOCOL }}
+          SASL_MECHANISM: ${{ vars.KAFKA_SASL_MECHANISM }}
         run: |
           set -euo pipefail
           missing=()
-          required=(BOOTSTRAP GROUP_ID REQ_TOPIC RESP_TOPIC DOC3TEXT_TOKEN_URL DOC3TEXT_CLIENT_ID DOC3TEXT_CLIENT_SECRET DOC3TEXT_G_RPC_URL)
+          required=(BOOTSTRAP GROUP_ID REQ_TOPIC RESP_TOPIC DOC3TEXT_TOKEN_URL DOC3TEXT_CLIENT_ID DOC3TEXT_CLIENT_SECRET DOC3TEXT_G_RPC_URL SECURITY_PROTOCOL SASL_MECHANISM)
           for key in "${required[@]}"; do
             [[ -z "${!key:-}" ]] && missing+=("$key")
           done
@@ -64,6 +66,8 @@ jobs:
           DOC3TEXT_CLIENT_ID: ${{ vars.DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR }}
           DOC3TEXT_CLIENT_SECRET: ${{ secrets.DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR }}
           DOC3TEXT_G_RPC_URL: ${{ vars.DOC3TEXT_G_RPC_URL }}
+          SECURITY_PROTOCOL: ${{ vars.KAFKA_SECURITY_PROTOCOL }}
+          SASL_MECHANISM: ${{ vars.KAFKA_SASL_MECHANISM }}
         run: |
           kubectl -n app create secret generic message-responder-ocr-env \
             --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
@@ -73,6 +77,8 @@ jobs:
             --from-literal=KAFKA_SASL_USERNAME="${SASL_USER}" \
             --from-literal=KAFKA_SASL_PASSWORD="${SASL_PASS}" \
             --from-literal=KAFKA_CLIENT_ID_MESSAGE_RESPONDER_OCR="${CLIENT_ID}" \
+            --from-literal=KAFKA_SECURITY_PROTOCOL="${SECURITY_PROTOCOL}" \
+            --from-literal=KAFKA_SASL_MECHANISM="${SASL_MECHANISM}" \
             --from-literal=DOC3TEXT_ACCESS_TOKEN_URL="${DOC3TEXT_TOKEN_URL}" \
             --from-literal=DOC3TEXT_CLIENT_ID_MESSAGE_RESPONDER_OCR="${DOC3TEXT_CLIENT_ID}" \
             --from-literal=DOC3TEXT_CLIENT_SECRET_MESSAGE_RESPONDER_OCR="${DOC3TEXT_CLIENT_SECRET}" \
