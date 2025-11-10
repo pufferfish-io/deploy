@@ -12,7 +12,7 @@ jobs:
   deploy:
     name: 🔄 Deploy via kubectl
     runs-on: self-hosted
-    # environment: prod   # <- если твои org/env-секреты привязаны к Environment, раскомментируй и укажи имя
+    # environment: prod   # <- если org/env-секреты привязаны к Environment, раскомментируй и укажи имя
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -44,9 +44,7 @@ jobs:
           set -euo pipefail
           missing=()
           required=(BOOTSTRAP GROUP_ID REQ_TOPIC RESP_TOPIC DOC3TEXT_TOKEN_URL DOC3TEXT_CLIENT_ID DOC3TEXT_CLIENT_SECRET DOC3TEXT_G_RPC_URL SECURITY_PROTOCOL SASL_MECHANISM)
-          for key in "${required[@]}"; do
-            [[ -z "${!key:-}" ]] && missing+=("$key")
-          done
+          for key in "${required[@]}"; do [[ -z "${!key:-}" ]] && missing+=("$key"); done
           if (( ${#missing[@]} > 0 )); then
             echo "❌ Missing required inputs:" >&2
             for key in "${missing[@]}"; do echo " - $key" >&2; done
@@ -72,6 +70,7 @@ jobs:
         run: |
           kubectl -n app create secret generic message-responder-ocr-env \
             --from-literal=KAFKA_BOOTSTRAP_SERVERS_VALUE="${BOOTSTRAP}" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS="${BOOTSTRAP}" \
             --from-literal=KAFKA_GROUP_ID_MESSAGE_RESPONDER_OCR="${GROUP_ID}" \
             --from-literal=KAFKA_TOPIC_NAME_OCR_REQUEST="${REQ_TOPIC}" \
             --from-literal=KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER="${RESP_TOPIC}" \
@@ -90,8 +89,7 @@ jobs:
         run: |
           kubectl -n app apply -f k8s/message-responder-ocr/deploy.yaml
 
-      # --------- ДОБАВЛЕННЫЕ ДИАГНОСТИЧЕСКИЕ ШАГИ (только имена, без значений) ---------
-
+      # --------- Диагностика БЕЗ exec в pod (только имена, без значений) ---------
       - name: 🔍 Resolved keys in job (names only)
         env:
           KEYS: >-
@@ -133,15 +131,7 @@ jobs:
       - name: 🧩 Deployment env wiring (snippet)
         run: |
           kubectl -n app get deploy message-responder-ocr -o yaml | sed -n '/containers:/,/imagePullPolicy:/p'
-
-      - name: 🔎 Env names inside running pod (names only)
-        run: |
-          POD=$(kubectl -n app get pods -l app=message-responder-ocr -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}'); \
-          [ -z "$POD" ] && POD=$(kubectl -n app get pods -l app=message-responder-ocr -o jsonpath='{.items[0].metadata.name}'); \
-          echo "Pod=$POD"; \
-          kubectl -n app exec "$POD" -- sh -lc 'env | egrep "^(KAFKA|SASL|SECURITY|DOC3TEXT|OIDC)_" | cut -d= -f1 | sort'
-
-      # -------------------------------------------------------------------------------
+      # ---------------------------------------------------------------------------
 
       - name: 🖼 Update image tag
         env:
