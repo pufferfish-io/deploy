@@ -67,6 +67,10 @@ jobs:
           IMAGE="${REPO}:${TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/telegram-normalizer telegram-normalizer=${IMAGE}
+      - name: 🧾 Show deployed image
+        run: |
+          kubectl -n app get deployment telegram-normalizer \
+            -o jsonpath='{.spec.template.spec.containers[0].image}' && echo
 
       - name: 🔎 Rollout status
         run: |
