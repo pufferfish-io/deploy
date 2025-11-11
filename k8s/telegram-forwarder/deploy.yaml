@@ -31,6 +31,9 @@ spec:
           envFrom:
             - secretRef:
                 name: telegram-forwarder-env
+          env:
+            - name: SERVER_ADDR_TELEGRAM_FORWARDER
+              value: ":8080"
           readinessProbe:
             httpGet:
               path: /healthz
