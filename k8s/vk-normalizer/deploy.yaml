@@ -25,7 +25,7 @@ spec:
       containers:
         - name: vk-normalizer
           image: ghcr.io/pufferfish-io/vk-normalizer:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: vk-normalizer-env

@@ -25,7 +25,7 @@ spec:
       containers:
         - name: telegram-normalizer
           image: ghcr.io/pufferfish-io/telegram-normalizer:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: telegram-normalizer-env

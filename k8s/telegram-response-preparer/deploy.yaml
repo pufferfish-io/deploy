@@ -25,7 +25,7 @@ spec:
       containers:
         - name: telegram-response-preparer
           image: ghcr.io/pufferfish-io/telegram-response-preparer:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: telegram-response-preparer-env

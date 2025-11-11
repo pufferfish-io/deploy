@@ -25,7 +25,7 @@ spec:
       containers:
         - name: message-responder
           image: ghcr.io/pufferfish-io/message-responder:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: message-responder-env

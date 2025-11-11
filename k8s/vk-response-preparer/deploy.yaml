@@ -25,7 +25,7 @@ spec:
       containers:
         - name: vk-response-preparer
           image: ghcr.io/pufferfish-io/vk-response-preparer:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: vk-response-preparer-env
