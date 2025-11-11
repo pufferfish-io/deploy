@@ -90,7 +90,7 @@ spec:
     - host: tg.forwarder.pufferfish.ru
       http:
         paths:
-        - path: /webhook
+          - path: /webhook
             pathType: Prefix
             backend:
               service:
