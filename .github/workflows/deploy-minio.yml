@@ -8,7 +8,6 @@ jobs:
     runs-on: self-hosted
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      # ЖЁСТКО закрепляем рабочий образ (без консоли):
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
@@ -41,10 +40,9 @@ jobs:
       - name: 📦 Apply manifests
         shell: bash
         run: |
-          # Namespace, PVC, deployment, service, and ingress live in one file now.
           kubectl apply -f k8s/minio/deploy.yaml
-          # Принудительно прошьём нужный образ в деплой (если поменяется в файле — перезапишем):
           kubectl -n minio set image deploy/minio minio="$MINIO_IMAGE" --record
+          kubectl -n minio rollout restart deployment/minio
 
       - name: ⏳ Wait rollout
         shell: bash

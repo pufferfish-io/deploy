@@ -102,10 +102,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - minio.s3.pufferfish.ru
+        - minio.pufferfish.ru
       secretName: minio-tls
   rules:
-    - host: minio.s3.pufferfish.ru
+    - host: minio.pufferfish.ru
       http:
         paths:
           - path: /
