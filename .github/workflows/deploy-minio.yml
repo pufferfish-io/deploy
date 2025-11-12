@@ -41,13 +41,10 @@ jobs:
       - name: 📦 Apply manifests
         shell: bash
         run: |
-          kubectl apply -f k8s/minio/namespace.yaml
-          kubectl apply -f k8s/minio/pvc.yaml
-          # Принудительно прошьём нужный образ в деплой (если поменяется в файле — перезапишем):
+          # Namespace, PVC, deployment, service, and ingress live in one file now.
           kubectl apply -f k8s/minio/deploy.yaml
+          # Принудительно прошьём нужный образ в деплой (если поменяется в файле — перезапишем):
           kubectl -n minio set image deploy/minio minio="$MINIO_IMAGE" --record
-          kubectl apply -f k8s/minio/svc.yaml
-          kubectl apply -f k8s/minio/ingress.yaml
 
       - name: ⏳ Wait rollout
         shell: bash
