@@ -84,15 +84,15 @@ jobs:
         continue-on-error: true
         run: |
           echo "Certificate info (subject/issuer):"
-          echo | openssl s_client -connect minio.pufferfish.ru:443 -servername minio.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
-          echo "HTTP probe over HTTPS (minio.pufferfish.ru):"
-          curl -I --max-time 10 https://minio.pufferfish.ru || true
+          echo | openssl s_client -connect minio.s3.pufferfish.ru:443 -servername minio.s3.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo "HTTP probe over HTTPS (minio.s3.pufferfish.ru):"
+          curl -I --max-time 10 https://minio.s3.pufferfish.ru || true
 
       - name: 🔎 Smoke check (best effort)
         shell: bash
         continue-on-error: true
         run: |
           echo "Health (ready):"
-          curl -fsS --max-time 10 https://minio.pufferfish.ru/minio/health/ready || true
+          curl -fsS --max-time 10 https://minio.s3.pufferfish.ru/minio/health/ready || true
           echo "Health (live):"
-          curl -fsS --max-time 10 https://minio.pufferfish.ru/minio/health/live || true
+          curl -fsS --max-time 10 https://minio.s3.pufferfish.ru/minio/health/live || true
