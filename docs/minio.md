@@ -19,8 +19,8 @@ kubectl get secrets -n minio
 ```
 
 ```sh
-kubectl get secret minio -n minio -o jsonpath="{.data.rootUser}" | base64 -d && echo
-kubectl get secret minio -n minio -o jsonpath="{.data.rootPassword}" | base64 -d && echo
+kubectl get secret minio -n minio-root -o jsonpath="{.data.rootUser}" | base64 -d && echo
+kubectl get secret minio -n minio-root -o jsonpath="{.data.rootPassword}" | base64 -d && echo
 ```
 
 delete
