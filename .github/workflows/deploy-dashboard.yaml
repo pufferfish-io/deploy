@@ -14,6 +14,11 @@ jobs:
       - name: 🔧 Ensure namespace
         run: |
           kubectl get ns kubernetes-dashboard || kubectl create ns kubernetes-dashboard
+      - name: 🔐 Ensure CSRF token secret
+        env:
+          CSRF_SECRET: ${{ secrets.DASHBOARD_K3S_CSRF_TOKEN }}
+        run: |
+          printf '%s' "$CSRF_SECRET" | kubectl -n kubernetes-dashboard create secret generic kubernetes-dashboard-csrf --from-file=csrf=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
       - name: 📦 Apply Kubernetes Dashboard
         run: |
           kubectl apply -f k8s/dashboard/deploy.yaml
