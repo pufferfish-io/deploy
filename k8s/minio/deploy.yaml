@@ -90,28 +90,3 @@ spec:
       targetPort: 9000
       protocol: TCP
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: minio-ingress
-  namespace: minio
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-http01
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts:
-        - backminio.pufferfish.ru
-      secretName: minio-tls
-  rules:
-    - host: backminio.pufferfish.ru
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: minio
-                port:
-                  number: 9000
