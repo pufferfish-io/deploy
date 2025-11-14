@@ -440,17 +440,10 @@ Build & Push (service repository)
   - Workflow: `.github/workflows/deploy-ingress.yaml` (triggered on file change or manual run).
 - Keycloak: `k8s/ingress/keycloak-ingress.yaml` → domain `auth.pufferfish.ru`.
   - Workflow: `.github/workflows/deploy-auth-ingress.yaml` (manual run).
-- Dashboard: `k8s/dashboard/certificate.yaml` + `k8s/ingress/dashboard-ingress.yaml` → domain `dashboard.k3s.pufferfish.ru`.
+- Dashboard: `k8s/ingress/dashboard-ingress.yaml` → domain `dashboard.k3s.pufferfish.ru`.
   - Workflow: `.github/workflows/deploy-dashboard.yaml`.
-  - Uses cert-manager `letsencrypt-dns01` (REG.RU DNS-01 via webhook) and ingress class `nginx`. Make sure `ClusterIssuer/letsencrypt-dns01` exists before running the workflow.
+  - Uses cert-manager `letsencrypt-http01` and ingress class `nginx`, just like the other ingresses.
 - Other ingresses still use cert-manager `letsencrypt-http01` and class `nginx`.
-
-### REG.RU DNS-01 (Dashboard)
-
-- Install [`flant/cert-manager-webhook-regru`](https://github.com/flant/cert-manager-webhook-regru) in the cluster and expose the service to cert-manager.
-- Create `ClusterIssuer/letsencrypt-dns01` that references the webhook (`groupName: acme.regru.ru`, `solverName: regru-dns`) and stores REG.RU API credentials in the secret the chart creates (`regru-password` by default).
-- Point `dashboard.k3s.pufferfish.ru` to the free REG.RU DNS servers (`ns1.reg.ru`, `ns2.reg.ru`) so the webhook can add `_acme-challenge` TXT records.
-- Allow the cluster/runner public IP in the REG.RU API whitelist; no additional packages or ports are needed on the GitHub Actions runner, because cert-manager performs the ACME flow inside the cluster.
 
 ## MinIO
 

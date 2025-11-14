@@ -14,13 +14,6 @@ jobs:
       - name: 🔧 Ensure namespace
         run: |
           kubectl get ns kubernetes-dashboard || kubectl create ns kubernetes-dashboard
-      - name: ✅ Check DNS-01 ClusterIssuer
-        run: |
-          kubectl get clusterissuer letsencrypt-dns01 >/dev/null \
-            || { echo "❌ clusterissuer/letsencrypt-dns01 is missing. Install cert-manager DNS-01 issuer (Reg.ru) first."; exit 1; }
-      - name: 📜 Apply dashboard certificate (DNS-01)
-        run: |
-          kubectl apply -f k8s/dashboard/certificate.yaml
       - name: 🔐 Ensure CSRF token secret
         env:
           CSRF_SECRET: ${{ secrets.DASHBOARD_K3S_CSRF_TOKEN }}
@@ -39,26 +32,14 @@ jobs:
         run: |
           echo "✅ Dashboard ingress in kubernetes-dashboard namespace:" \
             && kubectl get ingress -n kubernetes-dashboard -o wide
-      - name: 🔐 Wait for Certificate (dashboard-tls)
+      - name: 🔐 TLS certificate check (non-blocking)
+        continue-on-error: true
         run: |
           set -e
-          for i in $(seq 1 60); do
-            kubectl -n kubernetes-dashboard get certificate dashboard-tls && break || true
-            sleep 5
-            if [ "$i" -eq 60 ]; then echo "❌ certificate/dashboard-tls not created"; exit 1; fi
-          done
-          kubectl -n kubernetes-dashboard wait --for=condition=Ready certificate/dashboard-tls --timeout=10m
-          kubectl -n kubernetes-dashboard get certificate
-          echo "Secret type:" $(kubectl -n kubernetes-dashboard get secret dashboard-tls -o jsonpath='{.type}')
-      - name: 🔎 Orders/Challenges (debug)
-        continue-on-error: true
-        run: |
+          kubectl -n kubernetes-dashboard get certificate || true
           kubectl -n kubernetes-dashboard get orders.acme.cert-manager.io -o wide || true
           kubectl -n kubernetes-dashboard get challenges.acme.cert-manager.io -o wide || true
-      - name: ✅ TLS check (best effort)
-        continue-on-error: true
-        run: |
-          echo "Certificate info (subject/issuer):"
+          echo "Certificate info (if any):"
           echo | openssl s_client -connect dashboard.k3s.pufferfish.ru:443 -servername dashboard.k3s.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
-          echo "HTTP probe over HTTPS (status may be 200/301/308/404):"
+          echo "HTTP probe over HTTPS:"
           curl -I --max-time 10 https://dashboard.k3s.pufferfish.ru || true
