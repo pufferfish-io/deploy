@@ -1,0 +1,56 @@
+---
+name: "🚀 Deploy Dashboard: dashboard.k3s.pufferfish.ru"
+on:
+  push:
+    paths:
+      - k8s/dashboard/**
+      - k8s/ingress/dashboard-ingress.yaml
+  workflow_dispatch: null
+jobs:
+  apply-dashboard:
+    name: 🔄 Apply Dashboard + Ingress
+    runs-on: self-hosted
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+      - name: 🔧 Ensure namespace
+        run: |
+          kubectl get ns kubernetes-dashboard || kubectl create ns kubernetes-dashboard
+      - name: 📦 Apply Kubernetes Dashboard
+        run: |
+          kubectl apply -f k8s/dashboard/deploy.yaml
+      - name: ⏳ Wait dashboard rollout
+        run: |
+          kubectl -n kubernetes-dashboard rollout status deployment/kubernetes-dashboard --timeout=180s
+      - name: "📤 Deploy Ingress: dashboard.k3s.pufferfish.ru"
+        run: |
+          kubectl apply -f k8s/ingress/dashboard-ingress.yaml
+      - name: 📋 Show ingress
+        run: |
+          echo "✅ Dashboard ingress in kubernetes-dashboard namespace:" \
+            && kubectl get ingress -n kubernetes-dashboard -o wide
+      - name: 🔐 Wait for Certificate (dashboard-tls)
+        run: |
+          set -e
+          for i in $(seq 1 60); do
+            kubectl -n kubernetes-dashboard get certificate dashboard-tls && break || true
+            sleep 5
+            if [ "$i" -eq 60 ]; then echo "❌ certificate/dashboard-tls not created"; exit 1; fi
+          done
+          kubectl -n kubernetes-dashboard wait --for=condition=Ready certificate/dashboard-tls --timeout=10m
+          kubectl -n kubernetes-dashboard get certificate
+          echo "Secret type:" $(kubectl -n kubernetes-dashboard get secret dashboard-tls -o jsonpath='{.type}')
+      - name: 🔎 Orders/Challenges (debug)
+        continue-on-error: true
+        run: |
+          kubectl -n kubernetes-dashboard get orders.acme.cert-manager.io -o wide || true
+          kubectl -n kubernetes-dashboard get challenges.acme.cert-manager.io -o wide || true
+      - name: ✅ TLS check (best effort)
+        continue-on-error: true
+        run: |
+          echo "Certificate info (subject/issuer):"
+          echo | openssl s_client -connect dashboard.k3s.pufferfish.ru:443 -servername dashboard.k3s.pufferfish.ru 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo "HTTP probe over HTTPS (status may be 200/301/308/404):"
+          curl -I --max-time 10 https://dashboard.k3s.pufferfish.ru || true
