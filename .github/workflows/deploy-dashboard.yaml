@@ -1,10 +1,6 @@
 ---
 name: "🚀 Deploy Dashboard: dashboard.k3s.pufferfish.ru"
 on:
-  push:
-    paths:
-      - k8s/dashboard/**
-      - k8s/ingress/dashboard-ingress.yaml
   workflow_dispatch: null
 jobs:
   apply-dashboard:
