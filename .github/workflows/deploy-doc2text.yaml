@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (defaults to latest)"
-        required: false
-        default: "latest"
+        description: "Image tag to deploy"
+        required: true
 
 jobs:
   deploy:
@@ -79,9 +78,8 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
-          TAG=${IMAGE_TAG:-latest}
           REPO=ghcr.io/pufferfish-io/doc2text
-          IMAGE="${REPO}:${TAG}"
+          IMAGE="${REPO}:${IMAGE_TAG}"
           echo "Deploying image: ${IMAGE}"
           kubectl -n app set image deployment/doc2text doc2text=${IMAGE}
       - name: 🔍 Deployed image info

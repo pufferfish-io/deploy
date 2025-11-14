@@ -39,3 +39,15 @@ KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n minio delete secrets minio-root
 KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n minio get all
 kubectl -n minio get ingress,certificate,secret,svc,deploy,pvc
 ```
+
+d2t
+```sh
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app delete deployment doc2text
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app delete rs -l app=doc2text
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app delete pods -l app=doc2text --now
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app get all -l app=doc2text
+
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app get deployment doc2text
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app get rs -l app=doc2text
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n app get pods -l app=doc2text -o wide
+```
