@@ -14,6 +14,13 @@ jobs:
       - name: 🔧 Ensure namespace
         run: |
           kubectl get ns kubernetes-dashboard || kubectl create ns kubernetes-dashboard
+      - name: ✅ Check DNS-01 ClusterIssuer
+        run: |
+          kubectl get clusterissuer letsencrypt-dns01 >/dev/null \
+            || { echo "❌ clusterissuer/letsencrypt-dns01 is missing. Install cert-manager DNS-01 issuer (Reg.ru) first."; exit 1; }
+      - name: 📜 Apply dashboard certificate (DNS-01)
+        run: |
+          kubectl apply -f k8s/dashboard/certificate.yaml
       - name: 🔐 Ensure CSRF token secret
         env:
           CSRF_SECRET: ${{ secrets.DASHBOARD_K3S_CSRF_TOKEN }}

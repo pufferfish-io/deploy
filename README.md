@@ -68,7 +68,9 @@ All unique environment key names used across services, with classification (vari
 
 - Kubernetes cluster (k3s/EKS/…) and `kubectl` available on the CI runner.
 - NGINX Ingress Controller (class: `nginx`).
-- cert-manager installed with a `ClusterIssuer` named `letsencrypt-http01`.
+- cert-manager installed with `ClusterIssuers`:
+  - `letsencrypt-http01` (HTTP-01 solver used by legacy ingresses).
+  - `letsencrypt-dns01` (DNS-01 solver backed by the REG.RU webhook, required for `dashboard.k3s.pufferfish.ru`; domain must use `ns1.reg.ru` / `ns2.reg.ru` NS records and the REG.RU API IP allow-list must contain the cluster egress IPs).
 - DNS records pointing to your ingress controller for all domains in manifests.
 - Image pull secret `ghcr-secret` in required namespaces (e.g., `app`):
   ```bash
@@ -438,7 +440,17 @@ Build & Push (service repository)
   - Workflow: `.github/workflows/deploy-ingress.yaml` (triggered on file change or manual run).
 - Keycloak: `k8s/ingress/keycloak-ingress.yaml` → domain `auth.pufferfish.ru`.
   - Workflow: `.github/workflows/deploy-auth-ingress.yaml` (manual run).
-- Both use cert-manager `letsencrypt-http01` and class `nginx`.
+- Dashboard: `k8s/dashboard/certificate.yaml` + `k8s/ingress/dashboard-ingress.yaml` → domain `dashboard.k3s.pufferfish.ru`.
+  - Workflow: `.github/workflows/deploy-dashboard.yaml`.
+  - Uses cert-manager `letsencrypt-dns01` (REG.RU DNS-01 via webhook) and ingress class `nginx`. Make sure `ClusterIssuer/letsencrypt-dns01` exists before running the workflow.
+- Other ingresses still use cert-manager `letsencrypt-http01` and class `nginx`.
+
+### REG.RU DNS-01 (Dashboard)
+
+- Install [`flant/cert-manager-webhook-regru`](https://github.com/flant/cert-manager-webhook-regru) in the cluster and expose the service to cert-manager.
+- Create `ClusterIssuer/letsencrypt-dns01` that references the webhook (`groupName: acme.regru.ru`, `solverName: regru-dns`) and stores REG.RU API credentials in the secret the chart creates (`regru-password` by default).
+- Point `dashboard.k3s.pufferfish.ru` to the free REG.RU DNS servers (`ns1.reg.ru`, `ns2.reg.ru`) so the webhook can add `_acme-challenge` TXT records.
+- Allow the cluster/runner public IP in the REG.RU API whitelist; no additional packages or ports are needed on the GitHub Actions runner, because cert-manager performs the ACME flow inside the cluster.
 
 ## MinIO
 
