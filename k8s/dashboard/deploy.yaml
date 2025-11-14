@@ -33,7 +33,7 @@ spec:
       serviceAccountName: kubernetes-dashboard
       containers:
         - name: kubernetes-dashboard
-          image: kubernetesui/dashboard:v2.8.0
+          image: kubernetesui/dashboard:latest
           imagePullPolicy: IfNotPresent
           args:
             - --auto-generate-certificates
