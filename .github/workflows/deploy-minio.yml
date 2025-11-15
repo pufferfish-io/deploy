@@ -56,6 +56,27 @@ jobs:
         run: |
           kubectl -n minio get ingress minio-ingress -o wide || kubectl -n minio get ingress -o wide
 
+      - name: 🔧 Ensure cert-manager hostAlias for minio.pufferfish.ru
+        shell: bash
+        run: |
+          DOMAIN="${MINIO_DOMAIN}"
+          NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          echo "Using NODE_IP=${NODE_IP} for ${DOMAIN}"
+          kubectl -n cert-manager patch deploy cert-manager --type='json' -p="[
+            {
+              \"op\": \"replace\",
+              \"path\": \"/spec/template/spec/hostAliases\",
+              \"value\": [
+                {
+                  \"ip\": \"${NODE_IP}\",
+                  \"hostnames\": [\"${DOMAIN}\"]
+                }
+              ]
+            }
+          ]"
+          kubectl -n cert-manager rollout restart deploy/cert-manager
+          kubectl -n cert-manager rollout status deploy/cert-manager --timeout=120s
+
       - name: 🔐 Wait for Certificate (minio-tls)
         shell: bash
         run: |

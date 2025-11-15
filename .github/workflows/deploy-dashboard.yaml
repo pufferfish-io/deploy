@@ -32,6 +32,26 @@ jobs:
         run: |
           echo "✅ Dashboard ingress in kubernetes-dashboard namespace:" \
             && kubectl get ingress -n kubernetes-dashboard -o wide
+      - name: 🔧 Ensure cert-manager hostAlias for dashboard.k3s.pufferfish.ru
+        shell: bash
+        run: |
+          DOMAIN="dashboard.k3s.pufferfish.ru"
+          NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          echo "Using NODE_IP=${NODE_IP} for ${DOMAIN}"
+          kubectl -n cert-manager patch deploy cert-manager --type='json' -p="[
+            {
+              \"op\": \"replace\",
+              \"path\": \"/spec/template/spec/hostAliases\",
+              \"value\": [
+                {
+                  \"ip\": \"${NODE_IP}\",
+                  \"hostnames\": [\"${DOMAIN}\"]
+                }
+              ]
+            }
+          ]"
+          kubectl -n cert-manager rollout restart deploy/cert-manager
+          kubectl -n cert-manager rollout status deploy/cert-manager --timeout=120s
       - name: 🔐 TLS certificate check (non-blocking)
         continue-on-error: true
         run: |
