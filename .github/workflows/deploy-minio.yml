@@ -9,6 +9,7 @@ jobs:
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       MINIO_IMAGE: minio/minio:RELEASE.2021-04-22T15-44-28Z
+      MINIO_DOMAIN: minio.pufferfish.ru
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
 
@@ -49,3 +50,42 @@ jobs:
         run: |
           set -euo pipefail
           kubectl -n minio rollout status deploy/minio --timeout=300s
+
+      - name: 📋 Show ingress
+        shell: bash
+        run: |
+          kubectl -n minio get ingress minio-ingress -o wide || kubectl -n minio get ingress -o wide
+
+      - name: 🔐 Wait for Certificate (minio-tls)
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERT_NAME=minio-tls
+          echo "⏳ Waiting for certificate/${CERT_NAME} to be created..."
+          for i in $(seq 1 60); do
+            kubectl -n minio get certificate "${CERT_NAME}" && break || true
+            sleep 5
+            if [ "$i" -eq 60 ]; then
+              echo "❌ certificate/${CERT_NAME} not created"
+              exit 1
+            fi
+          done
+          kubectl -n minio wait --for=condition=Ready "certificate/${CERT_NAME}" --timeout=10m
+          kubectl -n minio get certificate "${CERT_NAME}"
+          echo "Secret type:" "$(kubectl -n minio get secret "${CERT_NAME}" -o jsonpath='{.type}')"
+
+      - name: 🔎 Orders/Challenges (debug)
+        shell: bash
+        continue-on-error: true
+        run: |
+          kubectl -n minio get orders.acme.cert-manager.io -o wide || true
+          kubectl -n minio get challenges.acme.cert-manager.io -o wide || true
+
+      - name: ✅ TLS check (best effort)
+        shell: bash
+        continue-on-error: true
+        run: |
+          echo "Certificate info (subject/issuer):"
+          echo | openssl s_client -connect "${MINIO_DOMAIN}:443" -servername "${MINIO_DOMAIN}" 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          echo "HTTP probe over HTTPS:"
+          curl -I --max-time 15 "https://${MINIO_DOMAIN}" || true
