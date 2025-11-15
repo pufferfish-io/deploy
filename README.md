@@ -35,7 +35,7 @@ All unique environment key names used across services, with classification (vari
 - KAFKA_TOPIC_NAME_TELEGRAM_NORMALIZED — variable
 - KAFKA_TOPIC_NAME_TELEGRAM_UPDATES — variable
 - KAFKA_TOPIC_NAME_TG_REQUEST_MESSAGE — variable
-- KAFKA_TOPIC_NAME_TG_RESPONSE_PREPARER — variable
+- KAFKA_TOPIC_NAME_TEMP_RESPONSE_PREPARER — variable
 - KAFKA_TOPIC_NAME_VK_REQUEST_MESSAGE — variable
 - KAFKA_TOPIC_NAME_VK_RESPONSE_PREPARER — variable
 - KAFKA_TOPIC_NAME_VK_UPDATES — variable
