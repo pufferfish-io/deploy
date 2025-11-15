@@ -14,6 +14,10 @@ jobs:
 
     env:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      DOC2TEXT_HTTP_DOMAIN: doc2text.pufferfish.ru
+      DOC2TEXT_GRPC_DOMAIN: grpc.doc2text.pufferfish.ru
+      DOC2TEXT_HTTP_CERT: doc2text-http-tls
+      DOC2TEXT_GRPC_CERT: doc2text-grpc-tls
 
     steps:
       - name: 🧾 Checkout repo
@@ -73,6 +77,66 @@ jobs:
       - name: 📤 Apply manifests
         run: |
           kubectl -n app apply -f k8s/doc2text/deploy.yaml
+      - name: 🔧 Ensure cert-manager hostAliases for doc2text domains
+        shell: bash
+        run: |
+          DOMAINS=("${DOC2TEXT_HTTP_DOMAIN}" "${DOC2TEXT_GRPC_DOMAIN}")
+          NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+          echo "Using NODE_IP=${NODE_IP} for domains: ${DOMAINS[*]}"
+          kubectl -n cert-manager patch deploy cert-manager --type='json' -p="[
+            {
+              \"op\": \"replace\",
+              \"path\": \"/spec/template/spec/hostAliases\",
+              \"value\": [
+                {
+                  \"ip\": \"${NODE_IP}\",
+                  \"hostnames\": [\"${DOC2TEXT_HTTP_DOMAIN}\", \"${DOC2TEXT_GRPC_DOMAIN}\"]
+                }
+              ]
+            }
+          ]"
+          kubectl -n cert-manager rollout restart deploy/cert-manager
+          kubectl -n cert-manager rollout status deploy/cert-manager --timeout=120s
+      - name: 🔐 Wait for TLS certificates (doc2text)
+        shell: bash
+        run: |
+          set -euo pipefail
+          wait_for_cert() {
+            local CERT_NAME="$1"
+            local NAMESPACE="app"
+            echo "⏳ Waiting for certificate/${CERT_NAME} in ${NAMESPACE}..."
+            for i in $(seq 1 60); do
+              if kubectl -n "${NAMESPACE}" get certificate "${CERT_NAME}" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 5
+              if [ "$i" -eq 60 ]; then
+                echo "❌ certificate/${CERT_NAME} not created"
+                exit 1
+              fi
+            done
+            kubectl -n "${NAMESPACE}" wait --for=condition=Ready "certificate/${CERT_NAME}" --timeout=10m
+            kubectl -n "${NAMESPACE}" get certificate "${CERT_NAME}"
+            echo "Secret type:" "$(kubectl -n "${NAMESPACE}" get secret "${CERT_NAME}" -o jsonpath='{.type}')"
+          }
+          wait_for_cert "${DOC2TEXT_HTTP_CERT}"
+          wait_for_cert "${DOC2TEXT_GRPC_CERT}"
+      - name: 🔎 Orders/Challenges (debug)
+        shell: bash
+        continue-on-error: true
+        run: |
+          kubectl -n app get orders.acme.cert-manager.io -o wide || true
+          kubectl -n app get challenges.acme.cert-manager.io -o wide || true
+      - name: ✅ TLS check (best effort)
+        shell: bash
+        continue-on-error: true
+        run: |
+          for DOMAIN in "${DOC2TEXT_HTTP_DOMAIN}" "${DOC2TEXT_GRPC_DOMAIN}"; do
+            echo "Certificate info for ${DOMAIN}:"
+            echo | openssl s_client -connect "${DOMAIN}:443" -servername "${DOMAIN}" 2>/dev/null | openssl x509 -noout -subject -issuer -dates || true
+          done
+          echo "HTTP probe over HTTPS (${DOC2TEXT_HTTP_DOMAIN}):"
+          curl -I --max-time 15 "https://${DOC2TEXT_HTTP_DOMAIN}" || true
 
       - name: 🖼 Update image tag
         env:

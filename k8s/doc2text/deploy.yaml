@@ -75,4 +75,57 @@ spec:
       port: 50052
       targetPort: 50052
 ---
- 
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: doc2text-http
+  namespace: app
+  labels:
+    app: doc2text
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - doc2text.pufferfish.ru
+      secretName: doc2text-http-tls
+  rules:
+    - host: doc2text.pufferfish.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doc2text
+                port:
+                  number: 8086
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: doc2text-grpc
+  namespace: app
+  labels:
+    app: doc2text
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grpc.doc2text.pufferfish.ru
+      secretName: doc2text-grpc-tls
+  rules:
+    - host: grpc.doc2text.pufferfish.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doc2text
+                port:
+                  number: 50052

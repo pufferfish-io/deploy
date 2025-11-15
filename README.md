@@ -373,7 +373,8 @@ Deploy (GitHub Actions)
 ## Doc2Text
 
 - Manifest: `k8s/doc2text/deploy.yaml`
-- Внешний Ingress отключен — сервис доступен только внутри кластера (ClusterIP).
+- HTTPS: `doc2text.pufferfish.ru` → proxy to port `8086`.
+- gRPC: `grpc.doc2text.pufferfish.ru` → proxy to port `50052` (Ingress with `backend-protocol: GRPC`).
 - Image: `ghcr.io/pufferfish-io/doc2text:<tag>`; tag is provided via the deploy workflow input.
 - Environment: loaded from Secret `doc2text-env` (created/updated by workflow from GitHub Secrets).
 
