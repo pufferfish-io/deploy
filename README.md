@@ -83,7 +83,7 @@ All unique environment key names used across services, with classification (vari
 
 ## Repository Layout
 
-- `k8s/ingress/hello-demo-ingress.yaml`: Ingress for `demo.pufferfish.ru`.
+- `k8s/ingress/dashboard-ingress.yaml`: Ingress for `dashboard.k3s.pufferfish.ru`.
 - `k8s/ingress/keycloak-ingress.yaml`: Ingress for `auth.pufferfish.ru`.
 - `k8s/telegram-forwarder/deploy.yaml`: Namespace, Deployment, Service, Ingress for Telegram Forwarder.
 - `.github/workflows/*`: GitHub Actions to apply manifests and deploy services.
@@ -437,8 +437,6 @@ Build & Push (service repository)
 
 ## Ingresses
 
-- Demo: `k8s/ingress/hello-demo-ingress.yaml` → domain `demo.pufferfish.ru`.
-  - Workflow: `.github/workflows/deploy-ingress.yaml` (triggered on file change or manual run).
 - Keycloak: `k8s/ingress/keycloak-ingress.yaml` → domain `auth.pufferfish.ru`.
   - Workflow: `.github/workflows/deploy-auth-ingress.yaml` (manual run).
 - Dashboard: `k8s/ingress/dashboard-ingress.yaml` → domain `dashboard.k3s.pufferfish.ru`.
@@ -454,7 +452,6 @@ This project no longer contains MinIO workflows or manifests.
 
 - Check ingresses:
   ```bash
-  kubectl get ingress -n demo -o wide
   kubectl get ingress -n auth -o wide
   kubectl get ingress -n app -o wide
   ```
